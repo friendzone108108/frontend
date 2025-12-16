@@ -294,7 +294,7 @@ export default function DocumentsPage() {
     };
 
     return (
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
             <DashboardNav />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -302,26 +302,29 @@ export default function DocumentsPage() {
 
                 <div className="flex-1 overflow-auto">
                     <div className="p-8">
-                        <h1 className="text-3xl font-bold mb-8">Documents</h1>
+                        <h1 className="text-3xl font-bold mb-2 text-white">Documents</h1>
+                        <p className="text-slate-400 mb-8">Manage your resumes and certificates</p>
 
                         <Tabs defaultValue="ai-resume" className="w-full">
-                            <TabsList>
-                                <TabsTrigger value="ai-resume">AI Resume Builder</TabsTrigger>
-                                <TabsTrigger value="certificates">Certificates & Documents</TabsTrigger>
+                            <TabsList className="bg-slate-800/50 border border-slate-700/50">
+                                <TabsTrigger value="ai-resume" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/50 data-[state=active]:to-purple-600/50 data-[state=active]:text-white">AI Resume Builder</TabsTrigger>
+                                <TabsTrigger value="certificates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/50 data-[state=active]:to-purple-600/50 data-[state=active]:text-white">Certificates & Documents</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="ai-resume" className="mt-6">
-                                <p className="text-sm text-muted-foreground mb-6">
+                                <p className="text-sm text-slate-400 mb-6">
                                     You have {documents.length} resume(s) left out of 10
                                 </p>
 
                                 <div className="space-y-4">
                                     {loading ? (
-                                        <div>Loading...</div>
+                                        <div className="flex items-center justify-center h-32">
+                                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
                                     ) : documents.length === 0 ? (
-                                        <Card>
+                                        <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
                                             <CardContent className="pt-6">
-                                                <p className="text-center text-muted-foreground py-8">
+                                                <p className="text-center text-slate-400 py-8">
                                                     No resumes yet. Create your first AI-generated resume!
                                                 </p>
                                             </CardContent>
