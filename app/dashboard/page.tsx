@@ -9,7 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { supabase } from "@/lib/supabase";
-import { ArrowRight, FileText, Settings, Briefcase, Award, FolderGit2, FileStack, AlertTriangle, TrendingUp } from "lucide-react";
+import { ArrowRight, FileText, Settings } from "lucide-react";
+
+// TODO: Import AI service functions when AI-Service microservice is implemented
+// import { analyzeSkillGaps } from "@/lib/api-services";
 
 interface DashboardStats {
   jobSearchActive: boolean;
@@ -29,7 +32,6 @@ export default function DashboardPage() {
     skillGapAlerts: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("User");
 
   useEffect(() => {
     fetchDashboardData();
@@ -41,17 +43,6 @@ export default function DashboardPage() {
       if (!user) {
         router.push('/login');
         return;
-      }
-
-      // Get user name
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.full_name) {
-        setUserName(profile.full_name.split(' ')[0]);
       }
 
       const { data: jobStatus } = await supabase
@@ -77,11 +68,33 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .eq('document_type', 'resume');
 
+      // Fetch skill gaps count
+      // TODO: Replace with AI-Service call for real-time skill gap analysis
+      // Currently fetching from database, but should call AI-Service to analyze
+      // user skills vs job market requirements using LLM
       const { count: skillGapsCount } = await supabase
         .from('skill_gaps')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('status', 'Open');
+
+      /*
+      TODO: When AI-Service is implemented, replace above with:
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('skills, career_preferences')
+        .eq('id', user.id)
+        .single();
+      
+      const skillAnalysis = await analyzeSkillGaps({
+        userId: user.id,
+        currentSkills: profile.skills,
+        targetRole: profile.career_preferences.preferred_roles[0]
+      });
+      
+      const skillGapsCount = skillAnalysis.skill_gaps.length;
+      */
 
       setStats({
         jobSearchActive: jobStatus?.is_active ?? true,
@@ -113,7 +126,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex h-screen bg-background">
       <DashboardNav />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -121,34 +134,21 @@ export default function DashboardPage() {
 
         <div className="flex-1 overflow-auto">
           <div className="p-8">
-            {/* Welcome Section */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">
-                Welcome back, <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">{userName}</span>! 👋
-              </h1>
-              <p className="text-slate-400">Here&apos;s an overview of your career automation progress.</p>
-            </div>
+            <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
 
             {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
+              <div>Loading...</div>
             ) : (
               <>
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-                  {/* Job Search Status */}
-                  <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <Card>
                     <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                          <Briefcase className="w-5 h-5 text-green-400" />
-                        </div>
-                        <span className="text-sm text-slate-400">Job Search</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Job Search Status</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className={`text-xl font-bold ${stats.jobSearchActive ? 'text-green-400' : 'text-slate-500'}`}>
-                          {stats.jobSearchActive ? 'Active' : 'Paused'}
+                        <span className="text-2xl font-bold">
+                          {stats.jobSearchActive ? 'Active' : 'Inactive'}
                         </span>
                         <Switch
                           checked={stats.jobSearchActive}
@@ -158,132 +158,51 @@ export default function DashboardPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Verified Certificates */}
-                  <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                  <Card>
                     <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
-                          <Award className="w-5 h-5 text-yellow-400" />
-                        </div>
-                        <span className="text-sm text-slate-400">Certificates</span>
-                      </div>
-                      <div className="text-3xl font-bold text-white">{stats.certificatesCount}</div>
-                      <p className="text-xs text-slate-500 mt-1">Verified</p>
+                      <span className="text-sm text-muted-foreground">Verified Certificates</span>
+                      <div className="text-4xl font-bold mt-2">{stats.certificatesCount}</div>
                     </CardContent>
                   </Card>
 
-                  {/* Projects Synced */}
-                  <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                  <Card>
                     <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-                          <FolderGit2 className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <span className="text-sm text-slate-400">Projects</span>
-                      </div>
-                      <div className="text-3xl font-bold text-white">{stats.projectsCount}</div>
-                      <p className="text-xs text-slate-500 mt-1">Synced from GitHub</p>
+                      <span className="text-sm text-muted-foreground">Projects Synced</span>
+                      <div className="text-4xl font-bold mt-2">{stats.projectsCount}</div>
                     </CardContent>
                   </Card>
 
-                  {/* Resume Versions */}
-                  <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                  <Card>
                     <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                          <FileStack className="w-5 h-5 text-purple-400" />
-                        </div>
-                        <span className="text-sm text-slate-400">Resumes</span>
+                      <span className="text-sm text-muted-foreground">Resume Versions</span>
+                      <div className="text-4xl font-bold mt-2">
+                        {stats.resumeVersions}<span className="text-lg text-muted-foreground">/10</span>
                       </div>
-                      <div className="text-3xl font-bold text-white">
-                        {stats.resumeVersions}<span className="text-lg text-slate-500">/10</span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">AI-generated versions</p>
                     </CardContent>
                   </Card>
 
-                  {/* Skill Gap Alerts */}
-                  <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                  <Card>
                     <CardContent className="pt-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
-                          <AlertTriangle className="w-5 h-5 text-red-400" />
-                        </div>
-                        <span className="text-sm text-slate-400">Skill Gaps</span>
-                      </div>
-                      <div className="text-3xl font-bold text-red-400">{stats.skillGapAlerts}</div>
-                      <p className="text-xs text-slate-500 mt-1">Need attention</p>
+                      <span className="text-sm text-muted-foreground">Skill Gap Alerts</span>
+                      <div className="text-4xl font-bold mt-2 text-red-500">{stats.skillGapAlerts}</div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
-                  <div className="flex flex-wrap gap-4">
-                    <Button
-                      onClick={() => router.push('/projects')}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 gap-2"
-                    >
-                      <FolderGit2 className="w-4 h-4" />
-                      View Projects
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/documents')}
-                      className="bg-slate-800/50 border-slate-600 text-white hover:bg-slate-700/50 gap-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Manage Documents
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/reports')}
-                      className="bg-slate-800/50 border-slate-600 text-white hover:bg-slate-700/50 gap-2"
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                      View Reports
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/settings')}
-                      className="bg-slate-800/50 border-slate-600 text-white hover:bg-slate-700/50 gap-2"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Settings
-                    </Button>
-                  </div>
+                <div className="flex flex-wrap gap-4">
+                  <Button onClick={() => router.push('/projects')} className="gap-2">
+                    <ArrowRight className="w-4 h-4" />
+                    Go to Projects
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push('/reports')} className="gap-2">
+                    <FileText className="w-4 h-4" />
+                    View Reports
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push('/settings')} className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Manage Job Search
+                  </Button>
                 </div>
-
-                {/* Recent Activity Placeholder */}
-                <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
-                  <CardContent className="pt-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">Recent Activity</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 p-3 bg-slate-700/30 rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
-                        <div className="flex-1">
-                          <p className="text-sm text-white">Resume updated for Software Engineer role</p>
-                          <p className="text-xs text-slate-500">2 hours ago</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 p-3 bg-slate-700/30 rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                        <div className="flex-1">
-                          <p className="text-sm text-white">New project synced from GitHub</p>
-                          <p className="text-xs text-slate-500">5 hours ago</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 p-3 bg-slate-700/30 rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-                        <div className="flex-1">
-                          <p className="text-sm text-white">Certificate verified: AWS Solutions Architect</p>
-                          <p className="text-xs text-slate-500">1 day ago</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </>
             )}
           </div>

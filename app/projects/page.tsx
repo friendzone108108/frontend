@@ -62,7 +62,7 @@ export default function ProjectsPage() {
     };
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="flex h-screen bg-background">
             <DashboardNav />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -71,26 +71,24 @@ export default function ProjectsPage() {
                 <div className="flex-1 overflow-auto">
                     <div className="p-8">
                         <div className="mb-8">
-                            <h1 className="text-3xl font-bold mb-2 text-white">Projects</h1>
-                            <p className="text-slate-400">Manage your projects and their associated videos.</p>
+                            <h1 className="text-3xl font-bold mb-2">Projects</h1>
+                            <p className="text-muted-foreground">Manage your projects and their associated videos.</p>
                         </div>
 
-                        <Card className="mb-6 bg-blue-500/10 border-blue-500/30">
+                        <Card className="mb-6 border-blue-200 bg-blue-50">
                             <CardContent className="pt-6 flex items-center gap-2">
-                                <Info className="w-5 h-5 text-blue-400" />
-                                <span className="text-sm text-blue-300">New Project Detected - Record new Video?</span>
+                                <Info className="w-5 h-5 text-blue-600" />
+                                <span className="text-sm">New Project Detected - Record new Video?</span>
                             </CardContent>
                         </Card>
 
                         <div className="space-y-4">
                             {loading ? (
-                                <div className="flex items-center justify-center h-32">
-                                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
+                                <div>Loading...</div>
                             ) : projects.length === 0 ? (
-                                <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                                <Card>
                                     <CardContent className="pt-6">
-                                        <p className="text-center text-slate-400">No projects yet. Connect your GitHub to sync projects.</p>
+                                        <p className="text-center text-muted-foreground">No projects yet. Connect your GitHub to sync projects.</p>
                                     </CardContent>
                                 </Card>
                             ) : (

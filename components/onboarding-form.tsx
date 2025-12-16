@@ -203,14 +203,14 @@ export function OnboardingForm() {
   const progressValue = (currentStep / steps.length) * 100;
 
   return (
-    <Card className="w-full max-w-3xl bg-slate-800/50 backdrop-blur-xl border-slate-700/50 shadow-2xl">
-      <CardHeader className="border-b border-slate-700/50">
+    <Card className="w-full max-w-3xl">
+      <CardHeader>
         <div className="flex justify-between items-center mb-4">
-          <CardTitle className="text-white">Step {currentStep} of {steps.length}: {steps[currentStep - 1].title}</CardTitle>
+          <CardTitle>Step {currentStep} of {steps.length}: {steps[currentStep - 1].title}</CardTitle>
         </div>
-        <Progress value={progressValue} className="h-2 bg-slate-700" />
+        <Progress value={progressValue} />
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent>
         {currentStep === 1 && <Step1 formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
         {currentStep === 2 && <Step2 formData={formData} setFormData={setFormData} />}
         {currentStep === 3 && <Step3 />}
@@ -219,17 +219,17 @@ export function OnboardingForm() {
 
         <div className="flex justify-between mt-8">
           {currentStep > 1 && (
-            <Button variant="outline" onClick={handlePrevious} className="bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50">
+            <Button variant="outline" onClick={handlePrevious}>
               Previous
             </Button>
           )}
           <div className="flex-grow" />
           {currentStep < steps.length ? (
-            <Button onClick={handleNext} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+            <Button onClick={handleNext}>
               Next
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : 'Finish'}
             </Button>
           )}

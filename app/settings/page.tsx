@@ -116,15 +116,11 @@ export default function SettingsPage() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
+        return <div className="flex items-center justify-center h-screen">Loading...</div>;
     }
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="flex h-screen bg-background">
             <DashboardNav />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -132,20 +128,18 @@ export default function SettingsPage() {
 
                 <div className="flex-1 overflow-auto">
                     <div className="p-8">
-                        <h1 className="text-3xl font-bold mb-2 text-white">Profile Settings</h1>
-                        <p className="text-slate-400 mb-8">Manage your personal information and preferences</p>
+                        <h1 className="text-3xl font-bold mb-8">Profile</h1>
 
                         <div className="space-y-6 max-w-4xl">
                             {/* Personal Details */}
-                            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
-                                <CardHeader className="border-b border-slate-700/50">
+                            <Card>
+                                <CardHeader>
                                     <div className="flex items-center justify-between">
-                                        <CardTitle className="text-white">Personal Details</CardTitle>
+                                        <CardTitle>Personal Details</CardTitle>
                                         {!editMode.personal ? (
                                             <Button
-                                                variant="outline"
+                                                variant="default"
                                                 size="sm"
-                                                className="bg-slate-700/50 border-slate-600 text-white hover:bg-slate-600/50"
                                                 onClick={() => setEditMode({ ...editMode, personal: true })}
                                             >
                                                 Edit
@@ -173,10 +167,10 @@ export default function SettingsPage() {
                                         )}
                                     </div>
                                 </CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-4 pt-6">
+                                <CardContent className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-slate-300">Full Name (Cannot be edited)</Label>
-                                        <Input value={profile.full_name} disabled className="bg-slate-700/50 border-slate-600 text-white" />
+                                        <Label>Full Name (Cannot be edited)</Label>
+                                        <Input value={profile.full_name} disabled />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Email Address</Label>
@@ -217,7 +211,7 @@ export default function SettingsPage() {
                             </Card>
 
                             {/* Academic Details */}
-                            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle>Academic Details</CardTitle>
@@ -283,7 +277,7 @@ export default function SettingsPage() {
                             </Card>
 
                             {/* Career Preferences */}
-                            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle>Career Preferences</CardTitle>
@@ -363,7 +357,7 @@ export default function SettingsPage() {
                             </Card>
 
                             {/* API Keys */}
-                            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader>
                                     <div className="flex items-center justify-between">
                                         <CardTitle>API Keys</CardTitle>
@@ -420,7 +414,7 @@ export default function SettingsPage() {
                             </Card>
 
                             {/* Social Account Connections */}
-                            <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle>Social Account Connections</CardTitle>
                                 </CardHeader>

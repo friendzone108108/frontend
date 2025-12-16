@@ -12,9 +12,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { Input } from "@/components/ui/input";
 
 export function DashboardHeader() {
     const router = useRouter();
@@ -67,7 +66,6 @@ export function DashboardHeader() {
     const handleLogout = async () => {
         try {
             await supabase.auth.signOut();
-            localStorage.removeItem('access_token');
             router.push('/');
         } catch (error) {
             console.error('Error logging out:', error);
@@ -84,63 +82,52 @@ export function DashboardHeader() {
     };
 
     return (
-        <div className="flex items-center justify-between gap-4 px-8 py-4 border-b border-slate-700/50 bg-slate-900/50">
-            {/* Search Bar */}
-            <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                    placeholder="Search projects, documents..."
-                    className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500"
-                />
-            </div>
+        <div className="flex items-center justify-end gap-4 px-8 py-4 border-b">
+            {/* Notifications Bell */}
+            <button
+                onClick={() => router.push('/notifications')}
+                className="relative p-2 hover:bg-muted rounded-lg transition-colors"
+            >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {unreadCount}
+                    </span>
+                )}
+            </button>
 
-            <div className="flex items-center gap-4">
-                {/* Notifications Bell */}
-                <button
-                    onClick={() => router.push('/notifications')}
-                    className="relative p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-                >
-                    <Bell className="w-5 h-5" />
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
-                            {unreadCount}
-                        </span>
-                    )}
-                </button>
-
-                {/* Profile Dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="focus:outline-none">
-                            <Avatar className="w-10 h-10 cursor-pointer ring-2 ring-slate-700 hover:ring-blue-500/50 transition-all">
-                                <AvatarImage src={userProfile?.photo} alt={userProfile?.name} />
-                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-medium">
-                                    {userProfile?.name ? getInitials(userProfile.name) : 'U'}
-                                </AvatarFallback>
-                            </Avatar>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700 text-white">
-                        <DropdownMenuLabel>
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium text-white">{userProfile?.name || 'User'}</p>
-                                <p className="text-xs text-slate-400">{userProfile?.email}</p>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="bg-slate-700" />
-                        <DropdownMenuItem onClick={() => router.push('/settings')} className="text-slate-300 hover:text-white hover:bg-slate-700 cursor-pointer">
-                            Profile Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push('/dashboard')} className="text-slate-300 hover:text-white hover:bg-slate-700 cursor-pointer">
-                            Dashboard
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-slate-700" />
-                        <DropdownMenuItem onClick={handleLogout} className="text-red-400 hover:text-red-300 hover:bg-slate-700 cursor-pointer">
-                            Log out
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button className="focus:outline-none">
+                        <Avatar className="w-10 h-10 cursor-pointer ring-2 ring-offset-2 ring-primary/20 hover:ring-primary/40 transition-all">
+                            <AvatarImage src={userProfile?.photo} alt={userProfile?.name} />
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                                {userProfile?.name ? getInitials(userProfile.name) : 'U'}
+                            </AvatarFallback>
+                        </Avatar>
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium">{userProfile?.name || 'User'}</p>
+                            <p className="text-xs text-muted-foreground">{userProfile?.email}</p>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push('/settings')}>
+                        Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                        Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                        Log out
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }

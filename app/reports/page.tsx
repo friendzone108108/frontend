@@ -29,7 +29,7 @@ export default function ReportsPage() {
     // }, [dateRange]);
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="flex h-screen bg-background">
             <DashboardNav />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -38,16 +38,13 @@ export default function ReportsPage() {
                 <div className="flex-1 overflow-auto">
                     <div className="p-8">
                         <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <h1 className="text-3xl font-bold text-white">Reports</h1>
-                                <p className="text-slate-400 mt-1">Track your job application analytics</p>
-                            </div>
+                            <h1 className="text-3xl font-bold">Reports</h1>
                             <div className="flex gap-2">
-                                <Button variant="outline" className="gap-2 bg-slate-800/50 border-slate-600 text-white hover:bg-slate-700/50">
+                                <Button variant="outline" className="gap-2">
                                     <Download className="w-4 h-4" />
                                     Export CSV
                                 </Button>
-                                <Button className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                                <Button className="gap-2">
                                     <FileUp className="w-4 h-4" />
                                     Export PDF
                                 </Button>
@@ -55,7 +52,7 @@ export default function ReportsPage() {
                         </div>
 
                         {/* Filters */}
-                        <Card className="mb-6 bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                        <Card className="mb-6">
                             <CardContent className="pt-6">
                                 <div className="flex items-end gap-4">
                                     <Button variant="link" className="text-primary px-0">

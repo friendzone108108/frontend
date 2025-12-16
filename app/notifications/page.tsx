@@ -66,7 +66,7 @@ export default function NotificationsPage() {
     };
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="flex h-screen bg-background">
             <DashboardNav />
 
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -74,18 +74,15 @@ export default function NotificationsPage() {
 
                 <div className="flex-1 overflow-auto">
                     <div className="p-8">
-                        <h1 className="text-3xl font-bold mb-2 text-white">Notifications</h1>
-                        <p className="text-slate-400 mb-8">Stay updated on your job applications</p>
+                        <h1 className="text-3xl font-bold mb-8">Notifications</h1>
 
                         <div className="space-y-4">
                             {loading ? (
-                                <div className="flex items-center justify-center h-32">
-                                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
+                                <div>Loading...</div>
                             ) : notifications.length === 0 ? (
-                                <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-xl">
+                                <Card>
                                     <CardContent className="pt-6">
-                                        <p className="text-center text-slate-400">
+                                        <p className="text-center text-muted-foreground">
                                             No notifications yet
                                         </p>
                                     </CardContent>
