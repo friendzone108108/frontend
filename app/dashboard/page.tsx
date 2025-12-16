@@ -1,213 +1,190 @@
 // frontend/app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { supabase } from "@/lib/supabase";
-import { ArrowRight, FileText, Settings } from "lucide-react";
-
-// TODO: Import AI service functions when AI-Service microservice is implemented
-// import { analyzeSkillGaps } from "@/lib/api-services";
-
-interface DashboardStats {
-  jobSearchActive: boolean;
-  certificatesCount: number;
-  projectsCount: number;
-  resumeVersions: number;
-  skillGapAlerts: number;
-}
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+    Briefcase,
+    FileCheck,
+    FolderGit2,
+    FileText,
+    AlertTriangle,
+    TrendingUp,
+    Clock,
+    Target
+} from "lucide-react";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats>({
-    jobSearchActive: true,
-    certificatesCount: 0,
-    projectsCount: 0,
-    resumeVersions: 0,
-    skillGapAlerts: 0,
-  });
-  const [loading, setLoading] = useState(true);
+    // Placeholder data - will be replaced with real API data
+    const stats = {
+        jobsApplied: 47,
+        interviews: 8,
+        certificates: 12,
+        projects: 6,
+        resumeVersions: 3,
+    };
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    const skillGaps = [
+        { skill: "Kubernetes", importance: "high", progress: 30 },
+        { skill: "System Design", importance: "medium", progress: 45 },
+        { skill: "GraphQL", importance: "low", progress: 60 },
+    ];
 
-  const fetchDashboardData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+    return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+            <DashboardNav />
 
-      const { data: jobStatus } = await supabase
-        .from('job_search_status')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+            <div className="ml-64">
+                <DashboardHeader
+                    title="Dashboard"
+                    subtitle="Welcome back! Here's your job search overview."
+                />
 
-      const { count: certsCount } = await supabase
-        .from('certificates')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('verified', true);
+                <main className="p-6 space-y-6">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-sm font-medium opacity-90">Jobs Applied</CardTitle>
+                                <Briefcase className="h-5 w-5 opacity-80" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-3xl font-bold">{stats.jobsApplied}</div>
+                                <p className="text-sm opacity-80 mt-1">
+                                    <TrendingUp className="inline h-4 w-4 mr-1" />
+                                    +12 this week
+                                </p>
+                            </CardContent>
+                        </Card>
 
-      const { count: projectsCount } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+                        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-sm font-medium opacity-90">Interviews</CardTitle>
+                                <Target className="h-5 w-5 opacity-80" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-3xl font-bold">{stats.interviews}</div>
+                                <p className="text-sm opacity-80 mt-1">
+                                    <Clock className="inline h-4 w-4 mr-1" />
+                                    2 scheduled
+                                </p>
+                            </CardContent>
+                        </Card>
 
-      const { count: resumesCount } = await supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('document_type', 'resume');
+                        <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-sm font-medium opacity-90">Certificates</CardTitle>
+                                <FileCheck className="h-5 w-5 opacity-80" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-3xl font-bold">{stats.certificates}</div>
+                                <p className="text-sm opacity-80 mt-1">Verified & uploaded</p>
+                            </CardContent>
+                        </Card>
 
-      // Fetch skill gaps count
-      // TODO: Replace with AI-Service call for real-time skill gap analysis
-      // Currently fetching from database, but should call AI-Service to analyze
-      // user skills vs job market requirements using LLM
-      const { count: skillGapsCount } = await supabase
-        .from('skill_gaps')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'Open');
+                        <Card className="border-0 shadow-sm bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-sm font-medium opacity-90">Projects</CardTitle>
+                                <FolderGit2 className="h-5 w-5 opacity-80" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-3xl font-bold">{stats.projects}</div>
+                                <p className="text-sm opacity-80 mt-1">Synced from GitHub</p>
+                            </CardContent>
+                        </Card>
+                    </div>
 
-      /*
-      TODO: When AI-Service is implemented, replace above with:
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('skills, career_preferences')
-        .eq('id', user.id)
-        .single();
-      
-      const skillAnalysis = await analyzeSkillGaps({
-        userId: user.id,
-        currentSkills: profile.skills,
-        targetRole: profile.career_preferences.preferred_roles[0]
-      });
-      
-      const skillGapsCount = skillAnalysis.skill_gaps.length;
-      */
+                    {/* Main Content Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Skill Gap Analysis */}
+                        <Card className="lg:col-span-2 border-0 shadow-sm">
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                            Skill Gap Alerts
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Based on your target roles and market trends
+                                        </CardDescription>
+                                    </div>
+                                    <Button variant="outline" size="sm">View All</Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {skillGaps.map((gap, index) => (
+                                    <div key={index} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium">{gap.skill}</span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${gap.importance === 'high'
+                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                        : gap.importance === 'medium'
+                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                            : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                    }`}>
+                                                    {gap.importance}
+                                                </span>
+                                            </div>
+                                            <span className="text-sm text-muted-foreground">{gap.progress}%</span>
+                                        </div>
+                                        <Progress value={gap.progress} className="h-2" />
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
 
-      setStats({
-        jobSearchActive: jobStatus?.is_active ?? true,
-        certificatesCount: certsCount ?? 0,
-        projectsCount: projectsCount ?? 0,
-        resumeVersions: resumesCount ?? 0,
-        skillGapAlerts: skillGapsCount ?? 0,
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleJobSearch = async (checked: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await supabase
-        .from('job_search_status')
-        .upsert({ user_id: user.id, is_active: checked });
-
-      setStats({ ...stats, jobSearchActive: checked });
-    } catch (error) {
-      console.error('Error toggling job search:', error);
-    }
-  };
-
-  return (
-    <div className="flex h-screen bg-background">
-      <DashboardNav />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader />
-
-        <div className="flex-1 overflow-auto">
-          <div className="p-8">
-            <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-
-            {loading ? (
-              <div>Loading...</div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Job Search Status</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold">
-                          {stats.jobSearchActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <Switch
-                          checked={stats.jobSearchActive}
-                          onCheckedChange={toggleJobSearch}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <span className="text-sm text-muted-foreground">Verified Certificates</span>
-                      <div className="text-4xl font-bold mt-2">{stats.certificatesCount}</div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <span className="text-sm text-muted-foreground">Projects Synced</span>
-                      <div className="text-4xl font-bold mt-2">{stats.projectsCount}</div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <span className="text-sm text-muted-foreground">Resume Versions</span>
-                      <div className="text-4xl font-bold mt-2">
-                        {stats.resumeVersions}<span className="text-lg text-muted-foreground">/10</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-6">
-                      <span className="text-sm text-muted-foreground">Skill Gap Alerts</span>
-                      <div className="text-4xl font-bold mt-2 text-red-500">{stats.skillGapAlerts}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="flex flex-wrap gap-4">
-                  <Button onClick={() => router.push('/projects')} className="gap-2">
-                    <ArrowRight className="w-4 h-4" />
-                    Go to Projects
-                  </Button>
-                  <Button variant="outline" onClick={() => router.push('/reports')} className="gap-2">
-                    <FileText className="w-4 h-4" />
-                    View Reports
-                  </Button>
-                  <Button variant="outline" onClick={() => router.push('/settings')} className="gap-2">
-                    <Settings className="w-4 h-4" />
-                    Manage Job Search
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+                        {/* Resume Versions */}
+                        <Card className="border-0 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-blue-500" />
+                                    Resume Versions
+                                </CardTitle>
+                                <CardDescription>
+                                    AI-generated resumes for different roles
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium text-sm">Software Engineer</p>
+                                            <p className="text-xs text-muted-foreground">Updated 2 days ago</p>
+                                        </div>
+                                        <Button size="sm" variant="ghost">View</Button>
+                                    </div>
+                                </div>
+                                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium text-sm">Full Stack Developer</p>
+                                            <p className="text-xs text-muted-foreground">Updated 5 days ago</p>
+                                        </div>
+                                        <Button size="sm" variant="ghost">View</Button>
+                                    </div>
+                                </div>
+                                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium text-sm">Backend Developer</p>
+                                            <p className="text-xs text-muted-foreground">Updated 1 week ago</p>
+                                        </div>
+                                        <Button size="sm" variant="ghost">View</Button>
+                                    </div>
+                                </div>
+                                <Button className="w-full mt-2" variant="outline">
+                                    Generate New Resume
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </main>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
