@@ -1,6 +1,7 @@
 // frontend/components/dashboard-header.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -14,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Search, LogOut, User, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardHeaderProps {
     title: string;
@@ -22,9 +24,24 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
     const router = useRouter();
+    const [user, setUser] = useState<{ email: string; name: string } | null>(null);
 
-    const handleLogout = () => {
-        localStorage.removeItem("access_token");
+    useEffect(() => {
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setUser({
+                    email: user.email || "user@example.com",
+                    name: user.user_metadata?.full_name || user.email?.split('@')[0] || "User",
+                });
+            }
+        };
+        getUser();
+    }, []);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        sessionStorage.removeItem("access_token");
         router.push("/login");
     };
 
@@ -61,7 +78,7 @@ export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
                             <Avatar className="h-10 w-10 ring-2 ring-blue-600/20">
                                 <AvatarImage src="" alt="User" />
                                 <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-semibold">
-                                    U
+                                    {user ? user.name.charAt(0).toUpperCase() : "U"}
                                 </AvatarFallback>
                             </Avatar>
                         </Button>
@@ -69,8 +86,8 @@ export function DashboardHeader({ title, subtitle }: DashboardHeaderProps) {
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                         <DropdownMenuLabel className="font-normal">
                             <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium">User Name</p>
-                                <p className="text-xs text-muted-foreground">user@example.com</p>
+                                <p className="text-sm font-medium">{user?.name || "Loading..."}</p>
+                                <p className="text-xs text-muted-foreground">{user?.email || "..."}</p>
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />

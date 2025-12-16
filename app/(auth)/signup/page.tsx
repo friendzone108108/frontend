@@ -76,7 +76,7 @@ export default function SignupPage() {
 
       // Store the access token
       if (data.access_token) {
-        localStorage.setItem("access_token", data.access_token);
+        sessionStorage.setItem("access_token", data.access_token);
         // Redirect to onboarding
         router.push("/onboarding");
       } else {

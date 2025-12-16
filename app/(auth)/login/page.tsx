@@ -47,7 +47,7 @@ export default function LoginPage() {
       }
 
       // Store the access token
-      localStorage.setItem("access_token", data.access_token);
+      sessionStorage.setItem("access_token", data.access_token);
 
       // Redirect to dashboard
       router.push("/dashboard");
