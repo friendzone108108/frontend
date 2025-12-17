@@ -24,10 +24,13 @@ function LoginForm() {
     const errorMsg = searchParams.get("error");
     if (errorMsg) {
       setError(errorMsg);
-      const timer = setTimeout(() => setError(""), 5000);
+      const timer = setTimeout(() => {
+        setError("");
+        router.replace("/login");
+      }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // LOGIC PRESERVED EXACTLY AS BEFORE
   const handleGoogleSignIn = () => {
