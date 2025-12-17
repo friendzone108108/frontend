@@ -16,6 +16,8 @@ export interface UserProfile {
     onboarding_completed?: boolean;
     profile_photo_url?: string;
     govt_id_url?: string;
+    phone_number?: string;
+    api_keys?: any;
 }
 
 export const OnboardingService = {
