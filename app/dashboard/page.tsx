@@ -20,18 +20,20 @@ import {
     Target
 } from "lucide-react";
 
+import { OnboardingService } from "@/services/onboarding";
+
 function DashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
     // Placeholder stats
-    const stats = {
-        jobsApplied: 47,
-        interviews: 8,
-        certificates: 12,
-        projects: 6,
-        resumeVersions: 3,
-    };
+    const [stats, setStats] = useState({
+        jobsApplied: 0,
+        interviews: 0,
+        certificates: 0,
+        projects: 0,
+        resumeVersions: 0,
+    });
 
     const skillGaps = [
         { skill: "Kubernetes", importance: "high", progress: 30 },
@@ -40,20 +42,49 @@ function DashboardContent() {
     ];
 
     useEffect(() => {
-        const accessToken = searchParams.get('access_token');
-        const refreshToken = searchParams.get('refresh_token');
+        const checkAuthAndData = async () => {
+            const accessToken = searchParams.get('access_token');
+            const refreshToken = searchParams.get('refresh_token');
 
-        if (accessToken) {
-            sessionStorage.setItem('access_token', accessToken);
-            if (refreshToken) sessionStorage.setItem('refresh_token', refreshToken);
+            if (accessToken) {
+                sessionStorage.setItem('access_token', accessToken);
+                if (refreshToken) sessionStorage.setItem('refresh_token', refreshToken);
 
-            supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken || '',
-            });
+                await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken || '',
+                });
 
-            router.replace('/dashboard');
-        }
+                router.replace('/dashboard');
+            }
+
+            // Check Onboarding Status & Fetch Data
+            try {
+                const profile = await OnboardingService.getProfile();
+                if (!profile) {
+                    // Not onboarded
+                    router.replace('/onboarding');
+                    return;
+                }
+
+                // User is onboarded, fetch dashboard stats
+                const { data: jobStatus } = await supabase.from('job_search_status').select('resume_versions').single();
+                const { count: projectCount } = await supabase.from('projects').select('*', { count: 'exact', head: true });
+                const { count: certCount } = await supabase.from('certificates').select('*', { count: 'exact', head: true });
+
+                setStats(prev => ({
+                    ...prev,
+                    projects: projectCount || 0,
+                    certificates: certCount || 0,
+                    resumeVersions: jobStatus?.resume_versions || 0
+                }));
+
+            } catch (err) {
+                console.error("Error checking onboarding or data:", err);
+            }
+        };
+
+        checkAuthAndData();
     }, [searchParams, router]);
 
     return (
