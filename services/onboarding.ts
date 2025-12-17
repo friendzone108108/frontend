@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-const ONBOARDING_API_URL = "https://c3a24cwqti.execute-api.ap-south-1.amazonaws.com/Prod/v1/onboarding";
+const ONBOARDING_API_URL = (process.env.NEXT_PUBLIC_ONBOARDING_SERVICE_URL || "https://c3a24cwqti.execute-api.ap-south-1.amazonaws.com/Prod") + "/v1/onboarding";
 
 export interface UserProfile {
     id: string;
