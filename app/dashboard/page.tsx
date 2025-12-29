@@ -42,6 +42,13 @@ function DashboardContent() {
 
     useEffect(() => {
         const checkAuthAndData = async () => {
+            // Check authentication first
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push('/login');
+                return;
+            }
+
             const accessToken = searchParams.get('access_token');
             const refreshToken = searchParams.get('refresh_token');
 

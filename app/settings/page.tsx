@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DashboardHeader } from "@/components/dashboard-header";
+import { supabase } from "@/lib/supabase";
 import { Edit2, Trash2 } from "lucide-react";
 import { OnboardingService, UserProfile as ServiceUserProfile } from "@/services/onboarding";
 
@@ -42,8 +43,17 @@ export default function SettingsPage() {
     });
 
     useEffect(() => {
+        checkAuth();
         fetchProfile();
     }, []);
+
+    const checkAuth = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+    };
 
     const fetchProfile = async () => {
         try {
