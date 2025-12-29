@@ -7,13 +7,13 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'CareerAutomate - AI-Powered Job Search & Resume Builder',
+  title: 'Career Automate - AI Powered Job Finder',
   description: 'Automate your job search with AI-powered resume generation, project descriptions, and smart job matching.',
   generator: 'CareerAutomate',
   icons: {
-    icon: 'https://i.postimg.cc/v80x21Lm/CA_logo_banner.jpg',
-    shortcut: 'https://i.postimg.cc/v80x21Lm/CA_logo_banner.jpg',
-    apple: 'https://i.postimg.cc/v80x21Lm/CA_logo_banner.jpg',
+    icon: 'https://i.postimg.cc/X7XGRVQb/CA_logo_sq.jpg',
+    shortcut: 'https://i.postimg.cc/X7XGRVQb/CA_logo_sq.jpg',
+    apple: 'https://i.postimg.cc/X7XGRVQb/CA_logo_sq.jpg',
   },
 }
 
