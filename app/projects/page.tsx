@@ -1,7 +1,7 @@
 // frontend/app/projects/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,7 @@ const genreColors: Record<string, string> = {
     'automation': 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
 };
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -987,7 +987,6 @@ export default function ProjectsPage() {
                                 </>
                             )}
                         </div>
-
                         {/* File Size Info */}
                         {recordedBlob && (
                             <p className="text-sm text-center text-muted-foreground">
@@ -998,5 +997,25 @@ export default function ProjectsPage() {
                 </DialogContent>
             </Dialog>
         </DashboardLayout>
+    );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+function ProjectsLoadingFallback() {
+    return (
+        <DashboardLayout>
+            <DashboardHeader title="Projects" subtitle="Manage your GitHub projects and AI-generated descriptions" />
+            <div className="p-6 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+        </DashboardLayout>
+    );
+}
+
+export default function ProjectsPage() {
+    return (
+        <Suspense fallback={<ProjectsLoadingFallback />}>
+            <ProjectsPageContent />
+        </Suspense>
     );
 }
