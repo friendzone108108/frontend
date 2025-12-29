@@ -720,6 +720,21 @@ function ProjectsPageContent() {
                         </Card>
                     ) : (
                         <>
+                            {/* Important README Notice */}
+                            <Alert className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                <AlertTitle className="text-amber-800 dark:text-amber-400">README.md Required for AI Features</AlertTitle>
+                                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                                    To generate first-person project descriptions for your resume, each repository <strong>must have a detailed README.md file</strong> that describes:
+                                    <ul className="list-disc list-inside mt-2 space-y-1">
+                                        <li>What the project does and its purpose</li>
+                                        <li>Technologies and frameworks used</li>
+                                        <li>Key features and accomplishments</li>
+                                        <li>Your role and contributions</li>
+                                    </ul>
+                                </AlertDescription>
+                            </Alert>
+
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold">{repositories.length} Repositories</h2>
                             </div>
