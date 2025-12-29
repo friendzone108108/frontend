@@ -13,10 +13,11 @@ export function Footer() {
           {/* Brand section */}
           <div className="sm:col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center hover:shadow-lg transition-shadow">
-                <span className="text-white font-bold text-xl">C</span>
-              </div>
-              <span className="font-bold text-lg">CareerAutoMate</span>
+              <img
+                src="https://i.postimg.cc/1RvV7gcX/CA_logo_banner_transparent.png"
+                alt="CareerAutomate"
+                className="h-10 object-contain"
+              />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
               Your AI-powered career growth platform. Automate job applications, optimize resumes, and showcase your

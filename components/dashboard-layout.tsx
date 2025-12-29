@@ -27,11 +27,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         <DashboardNav />
                     </SheetContent>
                 </Sheet>
-                <div className="flex items-center gap-2">
-                    <div className="p-1 rounded bg-gradient-to-br from-blue-600 to-indigo-600 shadow-sm">
-                        <Briefcase className="h-4 w-4 text-white" />
-                    </div>
-                    <span className="font-bold text-lg">CareerAutomate</span>
+                <div className="flex items-center">
+                    <img
+                        src="https://i.postimg.cc/1RvV7gcX/CA_logo_banner_transparent.png"
+                        alt="CareerAutomate"
+                        className="h-8 object-contain"
+                    />
                 </div>
             </div>
 
