@@ -339,6 +339,12 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
 
   return (
     <div className="space-y-6">
+      {/* Warning about unsaved progress */}
+      <div className="p-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-md text-sm flex items-center gap-2">
+        <span>⚠️</span>
+        <span>Your progress is not saved. Please complete all steps and submit before leaving this page.</span>
+      </div>
+
       <h2 className="text-2xl font-bold">Welcome to CareerAutomate</h2>
       <p className="text-muted-foreground">Let's get started by setting up your profile. This will help us tailor your job search experience.</p>
 
@@ -476,6 +482,9 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
           <Button variant="outline" size="sm" onClick={addEducation} type="button">
             Add Education
           </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            Add education from 12th, UG (Under Graduation), and PG (Post Graduation if done or currently pursuing). You may also add 10th if you wish.
+          </p>
         </div>
       </div>
     </div>
@@ -624,9 +633,21 @@ function Step3({ githubConnected, setGithubConnected, githubConnecting, setGithu
   const handleConnectGitHub = async () => {
     setGithubConnecting(true);
 
-    // Redirect to GitHub Sync Service OAuth flow
-    // After successful OAuth, the service will redirect back with tokens
-    window.location.href = `${GITHUB_SYNC_SERVICE_URL}/v1/github/install`;
+    try {
+      // Get current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user logged in');
+        setGithubConnecting(false);
+        return;
+      }
+
+      // Redirect to GitHub Sync Service OAuth flow with user_id
+      window.location.href = `${GITHUB_SYNC_SERVICE_URL}/v1/github/authorize?user_id=${user.id}`;
+    } catch (error) {
+      console.error('Error initiating GitHub connection:', error);
+      setGithubConnecting(false);
+    }
   };
 
   // Check if already connected on mount
