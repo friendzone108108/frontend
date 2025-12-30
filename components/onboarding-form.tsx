@@ -276,22 +276,34 @@ export function OnboardingForm() {
         {currentStep === 4 && <Step4 formData={formData} setFormData={setFormData} />}
         {currentStep === 5 && <Step5 formData={formData} />}
 
-        <div className="flex justify-between mt-8">
-          {currentStep > 1 && (
-            <Button variant="outline" onClick={handlePrevious}>
-              Previous
-            </Button>
+        <div className="flex flex-col gap-4 mt-8">
+          {/* Terms and Conditions notice for Step 5 */}
+          {currentStep === 5 && (
+            <p className="text-center text-sm text-muted-foreground">
+              By clicking Finish, you agree to our{' '}
+              <a href="/terms" target="_blank" className="text-blue-600 hover:underline font-medium">Terms of Service</a>
+              {' '}and{' '}
+              <a href="/privacy" target="_blank" className="text-blue-600 hover:underline font-medium">Privacy Policy</a>.
+            </p>
           )}
-          <div className="flex-grow" />
-          {currentStep < steps.length ? (
-            <Button onClick={handleNext}>
-              Next
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Finish'}
-            </Button>
-          )}
+
+          <div className="flex justify-between">
+            {currentStep > 1 && (
+              <Button variant="outline" onClick={handlePrevious}>
+                Previous
+              </Button>
+            )}
+            <div className="flex-grow" />
+            {currentStep < steps.length ? (
+              <Button onClick={handleNext}>
+                Next
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Finish'}
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
