@@ -1,7 +1,7 @@
 // frontend/components/onboarding-form.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,9 @@ export function OnboardingForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubConnecting, setGithubConnecting] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     dateOfBirth: '',
@@ -85,7 +88,57 @@ export function OnboardingForm() {
     },
   });
 
+  const validateStep1 = (): boolean => {
+    if (!formData.fullName.trim()) {
+      setValidationError('Full Name is required');
+      return false;
+    }
+    if (!formData.address.trim()) {
+      setValidationError('Address is required');
+      return false;
+    }
+    if (!formData.profilePhoto) {
+      setValidationError('Profile Photo is required');
+      return false;
+    }
+    if (!formData.govtId) {
+      setValidationError('Government Photo ID is required');
+      return false;
+    }
+    if (!formData.linkedinUrl.trim()) {
+      setValidationError('LinkedIn Profile URL is required');
+      return false;
+    }
+    if (!formData.githubUsername.trim()) {
+      setValidationError('GitHub Username is required');
+      return false;
+    }
+    if (formData.skills.length === 0) {
+      setValidationError('At least one skill is required');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    if (!githubConnected) {
+      setValidationError('Please connect your GitHub account to proceed');
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = () => {
+    setValidationError('');
+
+    // Validate based on current step
+    if (currentStep === 1 && !validateStep1()) {
+      return;
+    }
+    if (currentStep === 3 && !validateStep3()) {
+      return;
+    }
+
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
@@ -211,9 +264,15 @@ export function OnboardingForm() {
         <Progress value={progressValue} />
       </CardHeader>
       <CardContent>
+        {validationError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+            {validationError}
+          </div>
+        )}
+
         {currentStep === 1 && <Step1 formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
         {currentStep === 2 && <Step2 formData={formData} setFormData={setFormData} />}
-        {currentStep === 3 && <Step3 />}
+        {currentStep === 3 && <Step3 githubConnected={githubConnected} setGithubConnected={setGithubConnected} githubConnecting={githubConnecting} setGithubConnecting={setGithubConnecting} />}
         {currentStep === 4 && <Step4 formData={formData} setFormData={setFormData} />}
         {currentStep === 5 && <Step5 formData={formData} />}
 
@@ -313,7 +372,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>Profile Photo</Label>
+          <Label>Profile Photo *</Label>
           <div className="flex items-center gap-2">
             <Input
               type="file"
@@ -340,7 +399,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="linkedin">LinkedIn Profile URL</Label>
+          <Label htmlFor="linkedin">LinkedIn Profile URL *</Label>
           <Input
             id="linkedin"
             value={formData.linkedinUrl}
@@ -349,7 +408,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="github">GitHub Username</Label>
+          <Label htmlFor="github">GitHub Username *</Label>
           <Input
             id="github"
             value={formData.githubUsername}
@@ -542,19 +601,71 @@ function Step2({ formData, setFormData }: any) {
   );
 }
 
-function Step3() {
+function Step3({ githubConnected, setGithubConnected, githubConnecting, setGithubConnecting }: {
+  githubConnected: boolean;
+  setGithubConnected: (value: boolean) => void;
+  githubConnecting: boolean;
+  setGithubConnecting: (value: boolean) => void;
+}) {
+  const GITHUB_SYNC_SERVICE_URL = process.env.NEXT_PUBLIC_GITHUB_SYNC_SERVICE_URL;
+
+  const handleConnectGitHub = async () => {
+    setGithubConnecting(true);
+
+    // Redirect to GitHub Sync Service OAuth flow
+    // After successful OAuth, the service will redirect back with tokens
+    window.location.href = `${GITHUB_SYNC_SERVICE_URL}/v1/github/install`;
+  };
+
+  // Check if already connected on mount
+  const checkGitHubConnection = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('github_integrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        setGithubConnected(true);
+      }
+    } catch (error) {
+      console.error('Error checking GitHub connection:', error);
+    }
+  };
+
+  // Check connection status on component mount
+  useEffect(() => {
+    checkGitHubConnection();
+  }, []);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Connect your accounts</h2>
       <p className="text-muted-foreground">Connecting your accounts allows us to showcase your projects and professional experience on your profile, enhancing your visibility to potential employers.</p>
 
-      <Card>
+      <Card className={githubConnected ? "border-green-500 bg-green-50" : ""}>
         <CardContent className="pt-6 flex items-center justify-between">
           <div>
             <p className="font-semibold">Connect GitHub Account *</p>
-            <p className="text-sm text-muted-foreground">Showcase your projects and contributions.</p>
+            <p className="text-sm text-muted-foreground">
+              {githubConnected
+                ? "✓ GitHub connected! Your repositories will be synced."
+                : "Showcase your projects and contributions."}
+            </p>
           </div>
-          <Button disabled>Connect (Coming Soon)</Button>
+          {githubConnected ? (
+            <Button variant="outline" className="border-green-500 text-green-600" disabled>
+              ✓ Connected
+            </Button>
+          ) : (
+            <Button onClick={handleConnectGitHub} disabled={githubConnecting}>
+              {githubConnecting ? 'Connecting...' : 'Connect GitHub'}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
