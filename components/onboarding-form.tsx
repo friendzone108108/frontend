@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Upload, Info } from "lucide-react";
+import { Upload, Info, Trash2, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const steps = [
@@ -21,10 +22,80 @@ const steps = [
   { id: 5, title: 'Review & Finish' },
 ];
 
+// Degree type options
+const DEGREE_TYPES = [
+  { value: '10th', label: '10th Standard / SSLC' },
+  { value: '12th', label: '12th Standard / PUC / HSC' },
+  { value: 'diploma', label: 'Diploma' },
+  { value: 'bachelor', label: "Bachelor's Degree" },
+  { value: 'master', label: "Master's Degree" },
+  { value: 'phd', label: 'PhD / Doctorate' },
+];
+
+// Degree names by type
+const DEGREE_NAMES: Record<string, { value: string; label: string }[]> = {
+  '10th': [
+    { value: 'SSLC', label: 'SSLC' },
+    { value: 'CBSE', label: 'CBSE Class 10' },
+    { value: 'ICSE', label: 'ICSE Class 10' },
+    { value: 'State Board', label: 'State Board' },
+  ],
+  '12th': [
+    { value: 'PUC Science', label: 'PUC - Science' },
+    { value: 'PUC Commerce', label: 'PUC - Commerce' },
+    { value: 'PUC Arts', label: 'PUC - Arts' },
+    { value: 'CBSE Science', label: 'CBSE - Science' },
+    { value: 'CBSE Commerce', label: 'CBSE - Commerce' },
+    { value: 'CBSE Arts', label: 'CBSE - Arts' },
+    { value: 'ISC', label: 'ISC' },
+  ],
+  'diploma': [
+    { value: 'Diploma in Computer Science', label: 'Diploma in Computer Science' },
+    { value: 'Diploma in Mechanical Engineering', label: 'Diploma in Mechanical Engineering' },
+    { value: 'Diploma in Electronics', label: 'Diploma in Electronics' },
+    { value: 'Diploma in Civil Engineering', label: 'Diploma in Civil Engineering' },
+    { value: 'Other Diploma', label: 'Other Diploma' },
+  ],
+  'bachelor': [
+    { value: 'B.Tech', label: 'B.Tech (Bachelor of Technology)' },
+    { value: 'B.E.', label: 'B.E. (Bachelor of Engineering)' },
+    { value: 'BCA', label: 'BCA (Bachelor of Computer Applications)' },
+    { value: 'B.Sc', label: 'B.Sc (Bachelor of Science)' },
+    { value: 'B.Com', label: 'B.Com (Bachelor of Commerce)' },
+    { value: 'BBA', label: 'BBA (Bachelor of Business Administration)' },
+    { value: 'BA', label: 'BA (Bachelor of Arts)' },
+    { value: 'B.Arch', label: 'B.Arch (Bachelor of Architecture)' },
+    { value: 'Other Bachelor', label: 'Other Bachelor Degree' },
+  ],
+  'master': [
+    { value: 'M.Tech', label: 'M.Tech (Master of Technology)' },
+    { value: 'MCA', label: 'MCA (Master of Computer Applications)' },
+    { value: 'MBA', label: 'MBA (Master of Business Administration)' },
+    { value: 'M.Sc', label: 'M.Sc (Master of Science)' },
+    { value: 'M.Com', label: 'M.Com (Master of Commerce)' },
+    { value: 'MA', label: 'MA (Master of Arts)' },
+    { value: 'M.E.', label: 'M.E. (Master of Engineering)' },
+    { value: 'Other Master', label: 'Other Master Degree' },
+  ],
+  'phd': [
+    { value: 'PhD in Computer Science', label: 'PhD in Computer Science' },
+    { value: 'PhD in Engineering', label: 'PhD in Engineering' },
+    { value: 'PhD in Management', label: 'PhD in Management' },
+    { value: 'PhD in Science', label: 'PhD in Science' },
+    { value: 'Other PhD', label: 'Other PhD' },
+  ],
+};
+
 interface Education {
-  degree: string;
+  degreeType: string;
+  degreeName: string;
   institution: string;
-  grade: string;
+  gradeType: 'percentage' | 'cgpa';
+  obtainedMarks?: string;
+  totalMarks?: string;
+  obtainedCGPA?: string;
+  maxCGPA?: string;
+  yearOfCompletion: string;
 }
 
 interface FormData {
@@ -54,6 +125,52 @@ interface FormData {
   };
 }
 
+// Validation helper functions
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidLinkedInUrl = (url: string): boolean => {
+  return url.includes('linkedin.com/');
+};
+
+const isValidDateOfBirth = (dateStr: string): boolean => {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Check if date is in the future
+  if (date > today) return false;
+
+  // Check if user is at least 13 years old
+  const minAge = 13;
+  const minDate = new Date();
+  minDate.setFullYear(minDate.getFullYear() - minAge);
+  if (date > minDate) return false;
+
+  // Check if date is reasonable (not more than 100 years ago)
+  const maxAge = 100;
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - maxAge);
+  if (date < maxDate) return false;
+
+  return true;
+};
+
+const getMaxDateForDOB = (): string => {
+  const today = new Date();
+  today.setFullYear(today.getFullYear() - 13); // Min 13 years old
+  return today.toISOString().split('T')[0];
+};
+
+const getMinDateForDOB = (): string => {
+  const today = new Date();
+  today.setFullYear(today.getFullYear() - 100); // Max 100 years old
+  return today.toISOString().split('T')[0];
+};
+
 export function OnboardingForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -61,6 +178,7 @@ export function OnboardingForm() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubConnecting, setGithubConnecting] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     dateOfBirth: '',
@@ -88,13 +206,64 @@ export function OnboardingForm() {
     },
   });
 
+  // Check if user has already completed onboarding
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.onboarding_completed) {
+          // User already completed onboarding, redirect to dashboard
+          router.push('/dashboard');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      } finally {
+        setIsCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [router]);
+
   const validateStep1 = (): boolean => {
     if (!formData.fullName.trim()) {
       setValidationError('Full Name is required');
       return false;
     }
+    if (formData.fullName.trim().length < 2) {
+      setValidationError('Full Name must be at least 2 characters');
+      return false;
+    }
+    if (!formData.dateOfBirth) {
+      setValidationError('Date of Birth is required');
+      return false;
+    }
+    if (!isValidDateOfBirth(formData.dateOfBirth)) {
+      setValidationError('Invalid Date of Birth. You must be between 13 and 100 years old.');
+      return false;
+    }
+    if (formData.secondaryEmail && !isValidEmail(formData.secondaryEmail)) {
+      setValidationError('Please enter a valid secondary email address');
+      return false;
+    }
     if (!formData.address.trim()) {
       setValidationError('Address is required');
+      return false;
+    }
+    if (formData.address.trim().length < 10) {
+      setValidationError('Please enter a complete address (at least 10 characters)');
       return false;
     }
     if (!formData.profilePhoto) {
@@ -109,12 +278,37 @@ export function OnboardingForm() {
       setValidationError('LinkedIn Profile URL is required');
       return false;
     }
+    if (!isValidLinkedInUrl(formData.linkedinUrl)) {
+      setValidationError('Please enter a valid LinkedIn URL (must contain linkedin.com/)');
+      return false;
+    }
     if (!formData.githubUsername.trim()) {
       setValidationError('GitHub Username is required');
       return false;
     }
     if (formData.skills.length === 0) {
       setValidationError('At least one skill is required');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    if (formData.preferredRoles.length === 0) {
+      setValidationError('Please select at least one preferred job role');
+      return false;
+    }
+    if (!formData.targetLpa) {
+      setValidationError('Please enter your minimum target LPA');
+      return false;
+    }
+    const lpa = parseInt(formData.targetLpa);
+    if (isNaN(lpa) || lpa < 1 || lpa > 200) {
+      setValidationError('Target LPA must be between 1 and 200 lakhs');
+      return false;
+    }
+    if (formData.preferredLocations.length === 0) {
+      setValidationError('Please enter at least one preferred location');
       return false;
     }
     return true;
@@ -128,16 +322,25 @@ export function OnboardingForm() {
     return true;
   };
 
+  const validateStep4 = (): boolean => {
+    if (!formData.apiKeys.geminiAiKey.trim()) {
+      setValidationError('Gemini AI Key is required for AI features');
+      return false;
+    }
+    if (formData.apiKeys.geminiAiKey.length < 20) {
+      setValidationError('Please enter a valid Gemini AI Key');
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = () => {
     setValidationError('');
 
-    // Validate based on current step
-    if (currentStep === 1 && !validateStep1()) {
-      return;
-    }
-    if (currentStep === 3 && !validateStep3()) {
-      return;
-    }
+    if (currentStep === 1 && !validateStep1()) return;
+    if (currentStep === 2 && !validateStep2()) return;
+    if (currentStep === 3 && !validateStep3()) return;
+    if (currentStep === 4 && !validateStep4()) return;
 
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
@@ -174,6 +377,11 @@ export function OnboardingForm() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePhoto' | 'govtId') => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationError('File size must be less than 5MB');
+        return;
+      }
       setFormData({ ...formData, [field]: file });
     }
   };
@@ -193,32 +401,42 @@ export function OnboardingForm() {
         if (url) formData.govtIdUrl = url;
       }
 
+      // Format education data for backend
+      const formattedEducation = formData.education.map(edu => ({
+        degree_type: edu.degreeType,
+        degree_name: edu.degreeName,
+        institution: edu.institution,
+        grade_type: edu.gradeType,
+        obtained_marks: edu.gradeType === 'percentage' ? edu.obtainedMarks : null,
+        total_marks: edu.gradeType === 'percentage' ? edu.totalMarks : null,
+        obtained_cgpa: edu.gradeType === 'cgpa' ? edu.obtainedCGPA : null,
+        max_cgpa: edu.gradeType === 'cgpa' ? edu.maxCGPA : null,
+        year_of_completion: edu.yearOfCompletion,
+        // Calculate percentage/cgpa for display
+        percentage: edu.gradeType === 'percentage' && edu.obtainedMarks && edu.totalMarks
+          ? ((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)
+          : null,
+      }));
+
       // Prepare payload to match backend schema strictly
       const payload = {
         full_name: formData.fullName,
-        date_of_birth: formData.dateOfBirth, // "YYYY-MM-DD"
+        date_of_birth: formData.dateOfBirth,
         secondary_email: formData.secondaryEmail || null,
         address: formData.address,
         profile_photo_url: formData.profilePhotoUrl || null,
         govt_id_url: formData.govtIdUrl || null,
         linkedin_url: formData.linkedinUrl || null,
         github_username: formData.githubUsername || null,
-        skills: formData.skills, // Array of strings
-
-        // Backend expects a single education object? Taking the first one if multiple.
-        education: formData.education.length > 0 ? {
-          degree: formData.education[0].degree,
-          field: formData.education[0].institution // Mapping institution to field for now, or just sending institution if schema allows
-        } : null,
-
+        skills: formData.skills,
+        education: formattedEducation,
         career_preferences: {
-          roles_targeted: formData.preferredRoles, // Mapped from preferred_roles
-          min_target_lpa: formData.targetLpa ? parseInt(formData.targetLpa) : null, // Mapped from target_lpa
+          roles_targeted: formData.preferredRoles,
+          min_target_lpa: formData.targetLpa ? parseInt(formData.targetLpa) : null,
           preferred_locations: formData.preferredLocations,
-          // Extra fields like work_preference might be ignored by backend, but safe to send
-          work_preference: formData.workPreference
+          work_preference: formData.workPreference,
+          other_preferences: formData.otherPreferences,
         },
-
         api_keys: {
           gemini_ai_key: formData.apiKeys.geminiAiKey || null,
           linkedin_api_key: formData.apiKeys.linkedinApiKey || null,
@@ -237,8 +455,6 @@ export function OnboardingForm() {
       }
 
       // Submit to backend
-      // console.log("Submitting payload to teammate's microservice (placeholder):", payload);
-
       const { submitOnboardingData } = await import('@/lib/api-services');
       await submitOnboardingData(payload, session.access_token);
 
@@ -254,6 +470,18 @@ export function OnboardingForm() {
   };
 
   const progressValue = (currentStep / steps.length) * 100;
+
+  // Show loading while checking onboarding status
+  if (isCheckingOnboarding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className="w-full max-w-3xl">
@@ -316,14 +544,45 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
   const addEducation = () => {
     setFormData({
       ...formData,
-      education: [...formData.education, { degree: '', institution: '', grade: '' }]
+      education: [...formData.education, {
+        degreeType: '',
+        degreeName: '',
+        institution: '',
+        gradeType: 'percentage',
+        obtainedMarks: '',
+        totalMarks: '',
+        obtainedCGPA: '',
+        maxCGPA: '10',
+        yearOfCompletion: ''
+      }]
     });
   };
 
   const updateEducation = (index: number, field: string, value: string) => {
     const updated = [...formData.education];
     updated[index] = { ...updated[index], [field]: value };
+
+    // Reset degree name when degree type changes
+    if (field === 'degreeType') {
+      updated[index].degreeName = '';
+    }
+
+    // Reset grade fields when grade type changes
+    if (field === 'gradeType') {
+      updated[index].obtainedMarks = '';
+      updated[index].totalMarks = '';
+      updated[index].obtainedCGPA = '';
+      updated[index].maxCGPA = '10';
+    }
+
     setFormData({ ...formData, education: updated });
+  };
+
+  const removeEducation = (index: number) => {
+    setFormData({
+      ...formData,
+      education: formData.education.filter((_: any, i: number) => i !== index)
+    });
   };
 
   const addSkill = () => {
@@ -356,6 +615,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             placeholder="e.g. Jane Doe"
+            maxLength={100}
           />
         </div>
         <div className="space-y-2">
@@ -365,7 +625,10 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
             type="date"
             value={formData.dateOfBirth}
             onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+            max={getMaxDateForDOB()}
+            min={getMinDateForDOB()}
           />
+          <p className="text-xs text-muted-foreground">You must be at least 13 years old</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="secondaryEmail">Secondary Email Address (Optional)</Label>
@@ -383,7 +646,8 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
             id="address"
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            placeholder="123 Main St, Anytown, USA"
+            placeholder="City, State, Country"
+            maxLength={200}
           />
         </div>
       </div>
@@ -399,6 +663,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
             />
             {formData.profilePhoto && <span className="text-sm text-green-600">✓ {formData.profilePhoto.name}</span>}
           </div>
+          <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG</p>
         </div>
 
         <div className="space-y-2">
@@ -411,7 +676,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
             />
             {formData.govtId && <span className="text-sm text-green-600">✓ {formData.govtId.name}</span>}
           </div>
-          <p className="text-xs text-muted-foreground">Max 1MB, formats: JPEG, JPG, PNG, PDF</p>
+          <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG, PDF</p>
         </div>
       </div>
 
@@ -459,32 +724,186 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
           </div>
         </div>
 
-        <div className="mt-4 space-y-4">
-          {formData.education.map((edu: Education, index: number) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded">
-              <Input
-                placeholder="Degree (e.g. Bachelor of Technology)"
-                value={edu.degree}
-                onChange={(e) => updateEducation(index, 'degree', e.target.value)}
-              />
-              <Input
-                placeholder="College/University"
-                value={edu.institution}
-                onChange={(e) => updateEducation(index, 'institution', e.target.value)}
-              />
-              <Input
-                placeholder="Percentage or CGPA"
-                value={edu.grade}
-                onChange={(e) => updateEducation(index, 'grade', e.target.value)}
-              />
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addEducation} type="button">
-            Add Education
-          </Button>
-          <p className="text-xs text-muted-foreground mt-2">
-            Add education from 12th, UG (Under Graduation), and PG (Post Graduation if done or currently pursuing). You may also add 10th if you wish.
+        {/* Education Section - Redesigned */}
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-semibold">Education Details</Label>
+            <Button variant="outline" size="sm" onClick={addEducation} type="button" className="gap-1">
+              <Plus className="w-4 h-4" /> Add Education
+            </Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Add your educational qualifications (10th, 12th, UG, PG, etc.)
           </p>
+
+          {formData.education.length === 0 && (
+            <div className="p-6 border-2 border-dashed rounded-lg text-center text-muted-foreground">
+              <p>No education added yet. Click "Add Education" to add your qualifications.</p>
+            </div>
+          )}
+
+          {formData.education.map((edu: Education, index: number) => (
+            <Card key={index} className="p-4">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <span className="font-medium text-sm text-muted-foreground">Education #{index + 1}</span>
+                  <Button variant="ghost" size="sm" onClick={() => removeEducation(index)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Degree Type */}
+                  <div className="space-y-2">
+                    <Label>Degree Type *</Label>
+                    <Select
+                      value={edu.degreeType}
+                      onValueChange={(value) => updateEducation(index, 'degreeType', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select degree type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEGREE_TYPES.map(type => (
+                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Degree Name */}
+                  <div className="space-y-2">
+                    <Label>Degree Name *</Label>
+                    <Select
+                      value={edu.degreeName}
+                      onValueChange={(value) => updateEducation(index, 'degreeName', value)}
+                      disabled={!edu.degreeType}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={edu.degreeType ? "Select degree name" : "Select degree type first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {edu.degreeType && DEGREE_NAMES[edu.degreeType]?.map(degree => (
+                          <SelectItem key={degree.value} value={degree.value}>{degree.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Institution */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>College/University/School Name *</Label>
+                    <Input
+                      placeholder="Enter your institution name"
+                      value={edu.institution}
+                      onChange={(e) => updateEducation(index, 'institution', e.target.value)}
+                    />
+                  </div>
+
+                  {/* Grade Type Toggle */}
+                  <div className="space-y-2">
+                    <Label>Grade Type</Label>
+                    <Select
+                      value={edu.gradeType}
+                      onValueChange={(value) => updateEducation(index, 'gradeType', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">Percentage</SelectItem>
+                        <SelectItem value="cgpa">CGPA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Year of Completion */}
+                  <div className="space-y-2">
+                    <Label>Year of Completion</Label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 2023"
+                      value={edu.yearOfCompletion}
+                      onChange={(e) => updateEducation(index, 'yearOfCompletion', e.target.value)}
+                      min="1990"
+                      max={new Date().getFullYear() + 5}
+                    />
+                  </div>
+
+                  {/* Percentage Fields */}
+                  {edu.gradeType === 'percentage' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Marks Obtained</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 450"
+                          value={edu.obtainedMarks}
+                          onChange={(e) => updateEducation(index, 'obtainedMarks', e.target.value)}
+                          min="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Total Marks</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 500"
+                          value={edu.totalMarks}
+                          onChange={(e) => updateEducation(index, 'totalMarks', e.target.value)}
+                          min="1"
+                        />
+                        {edu.obtainedMarks && edu.totalMarks && (
+                          <p className="text-xs text-green-600 font-medium">
+                            Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* CGPA Fields */}
+                  {edu.gradeType === 'cgpa' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>CGPA Obtained</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g. 8.5"
+                          value={edu.obtainedCGPA}
+                          onChange={(e) => updateEducation(index, 'obtainedCGPA', e.target.value)}
+                          min="0"
+                          max={parseFloat(edu.maxCGPA || '10')}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Maximum CGPA</Label>
+                        <Select
+                          value={edu.maxCGPA || '10'}
+                          onValueChange={(value) => updateEducation(index, 'maxCGPA', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="4">4</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {edu.obtainedCGPA && edu.maxCGPA && (
+                          <p className="text-xs text-green-600 font-medium">
+                            CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       </div>
     </div>
@@ -532,8 +951,8 @@ function Step2({ formData, setFormData }: any) {
       <p className="text-muted-foreground">Help us understand your career preferences to find the best opportunities for you.</p>
 
       <div>
-        <h3 className="text-lg font-semibold">Career Preferences</h3>
-        <p className="text-sm text-muted-foreground">Preferred Job Roles and Fields</p>
+        <h3 className="text-lg font-semibold">Career Preferences *</h3>
+        <p className="text-sm text-muted-foreground">Preferred Job Roles and Fields (select at least one)</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
           {roles.map(role => (
             <div key={role} className="flex items-center space-x-2">
@@ -550,16 +969,20 @@ function Step2({ formData, setFormData }: any) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="lpa">Minimum Target LPA (in Lakhs)</Label>
+          <Label htmlFor="lpa">Minimum Target LPA (in Lakhs) *</Label>
           <Input
             id="lpa"
+            type="number"
             value={formData.targetLpa}
             onChange={(e) => setFormData({ ...formData, targetLpa: e.target.value })}
             placeholder="e.g. 15"
+            min="1"
+            max="200"
           />
+          <p className="text-xs text-muted-foreground">Enter a value between 1 and 200</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="locations">Preferred Job Locations (comma separated)</Label>
+          <Label htmlFor="locations">Preferred Job Locations (comma separated) *</Label>
           <Input
             id="locations"
             value={formData.preferredLocations.join(', ')}
@@ -752,6 +1175,7 @@ function Step4({ formData, setFormData }: any) {
             onChange={(e) => setFormData({ ...formData, apiKeys: { ...formData.apiKeys, geminiAiKey: e.target.value } })}
             placeholder="Enter your Gemini AI Key"
           />
+          <p className="text-xs text-muted-foreground">Required for AI-powered features like resume generation and project descriptions</p>
         </div>
 
         <div className="space-y-2">
@@ -787,22 +1211,7 @@ function Step4({ formData, setFormData }: any) {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="naukri-api">Naukri API Key (Optional)</Label>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm"><Info className="w-4 h-4" /></Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>How to get Naukri API Key</DialogTitle>
-                  <DialogDescription>
-                    <p className="mt-4">Naukri does not provide public APIs. Contact their business team for API access.</p>
-                  </DialogDescription>
-                </DialogHeader>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <Label htmlFor="naukri-api">Naukri API Key (Optional)</Label>
           <Input
             id="naukri-api"
             type="password"
@@ -813,27 +1222,7 @@ function Step4({ formData, setFormData }: any) {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="indeed-api">Indeed API Key (Optional)</Label>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm"><Info className="w-4 h-4" /></Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>How to get Indeed API Key</DialogTitle>
-                  <DialogDescription>
-                    <ol className="list-decimal list-inside space-y-2 mt-4">
-                      <li>Go to <a href="https://www.indeed.com/publisher" target="_blank" className="text-primary underline">Indeed Publisher Portal</a></li>
-                      <li>Sign up or log in</li>
-                      <li>Register your application</li>
-                      <li>Get your Publisher ID (API key)</li>
-                    </ol>
-                  </DialogDescription>
-                </DialogHeader>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <Label htmlFor="indeed-api">Indeed API Key (Optional)</Label>
           <Input
             id="indeed-api"
             type="password"
@@ -844,28 +1233,7 @@ function Step4({ formData, setFormData }: any) {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="gmail-api">Gmail API Key (Optional)</Label>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm"><Info className="w-4 h-4" /></Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>How to get Gmail API Credentials</DialogTitle>
-                  <DialogDescription>
-                    <ol className="list-decimal list-inside space-y-2 mt-4">
-                      <li>Go to <a href="https://console.cloud.google.com/" target="_blank" className="text-primary underline">Google Cloud Console</a></li>
-                      <li>Create a new project or select existing</li>
-                      <li>Enable Gmail API</li>
-                      <li>Create credentials (OAuth 2.0 Client ID)</li>
-                      <li>Download the credentials JSON file</li>
-                    </ol>
-                  </DialogDescription>
-                </DialogHeader>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <Label htmlFor="gmail-api">Gmail API Key (Optional)</Label>
           <Input
             id="gmail-api"
             type="password"
@@ -882,70 +1250,133 @@ function Step4({ formData, setFormData }: any) {
 function Step5({ formData }: any) {
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Review & Finish</h2>
-      <p className="text-muted-foreground">Please review your information below before completing the onboarding process.</p>
+      <h2 className="text-2xl font-bold">Review Your Information</h2>
+      <p className="text-muted-foreground">Please review your information before submitting.</p>
 
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Personal Information</CardTitle>
+            <CardTitle className="text-lg">Personal Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p><strong>Name:</strong> {formData.fullName || 'Not provided'}</p>
-            <p><strong>Date of Birth:</strong> {formData.dateOfBirth || 'Not provided'}</p>
-            <p><strong>Email:</strong> {formData.secondaryEmail || 'Not provided'}</p>
-            <p><strong>Address:</strong> {formData.address || 'Not provided'}</p>
-            <p><strong>LinkedIn:</strong> {formData.linkedinUrl || 'Not provided'}</p>
-            <p><strong>GitHub:</strong> {formData.githubUsername || 'Not provided'}</p>
-            <p><strong>Profile Photo:</strong> {formData.profilePhoto ? formData.profilePhoto.name : 'Not uploaded'}</p>
-            <p><strong>Govt ID:</strong> {formData.govtId ? formData.govtId.name : 'Not uploaded'}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Skills & Education</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p><strong>Skills:</strong> {formData.skills.join(', ') || 'None'}</p>
+          <CardContent className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <strong>Education:</strong>
-              {formData.education.length > 0 ? (
-                <ul className="list-disc list-inside ml-4 mt-1">
-                  {formData.education.map((edu: Education, index: number) => (
-                    <li key={index}>{edu.degree} from {edu.institution} ({edu.grade})</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="ml-4">None added</p>
-              )}
+              <span className="text-muted-foreground">Full Name:</span>
+              <p className="font-medium">{formData.fullName}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Date of Birth:</span>
+              <p className="font-medium">{formData.dateOfBirth}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Secondary Email:</span>
+              <p className="font-medium">{formData.secondaryEmail || 'Not provided'}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Address:</span>
+              <p className="font-medium">{formData.address}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">LinkedIn:</span>
+              <p className="font-medium truncate">{formData.linkedinUrl}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">GitHub:</span>
+              <p className="font-medium">{formData.githubUsername}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Career Goals</CardTitle>
+            <CardTitle className="text-lg">Skills</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {formData.skills.map((skill: string, index: number) => (
+                <span key={index} className="bg-primary/10 px-3 py-1 rounded-full text-sm">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {formData.education.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Education</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {formData.education.map((edu: Education, index: number) => (
+                <div key={index} className="p-3 bg-muted/50 rounded-lg">
+                  <p className="font-medium">{edu.degreeName} ({edu.degreeType})</p>
+                  <p className="text-sm text-muted-foreground">{edu.institution}</p>
+                  {edu.gradeType === 'percentage' && edu.obtainedMarks && edu.totalMarks && (
+                    <p className="text-sm text-muted-foreground">
+                      Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
+                    </p>
+                  )}
+                  {edu.gradeType === 'cgpa' && edu.obtainedCGPA && (
+                    <p className="text-sm text-muted-foreground">
+                      CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
+                    </p>
+                  )}
+                  {edu.yearOfCompletion && (
+                    <p className="text-sm text-muted-foreground">Year: {edu.yearOfCompletion}</p>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Career Preferences</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p><strong>Preferred Roles:</strong> {formData.preferredRoles.join(', ') || 'None'}</p>
-            <p><strong>Target LPA:</strong> {formData.targetLpa ? `${formData.targetLpa} Lakhs` : 'Not specified'}</p>
-            <p><strong>Preferred Locations:</strong> {formData.preferredLocations.join(', ') || 'None'}</p>
-            <p><strong>Work Preference:</strong> {formData.workPreference.join(', ') || 'None'}</p>
-            <p><strong>Other Preferences:</strong> {formData.otherPreferences.join(', ') || 'None'}</p>
+            <div>
+              <span className="text-muted-foreground">Preferred Roles:</span>
+              <p className="font-medium">{formData.preferredRoles.join(', ')}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Target LPA:</span>
+              <p className="font-medium">{formData.targetLpa} LPA</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Preferred Locations:</span>
+              <p className="font-medium">{formData.preferredLocations.join(', ')}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Work Preference:</span>
+              <p className="font-medium">{formData.workPreference.join(', ') || 'Not specified'}</p>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">API Keys Configured</CardTitle>
+            <CardTitle className="text-lg">API Keys Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p><strong>Gemini AI:</strong> {formData.apiKeys.geminiAiKey ? '✓ Configured' : '✗ Not configured'}</p>
-            <p><strong>LinkedIn:</strong> {formData.apiKeys.linkedinApiKey ? '✓ Configured' : '✗ Not configured'}</p>
-            <p><strong>Naukri:</strong> {formData.apiKeys.naukriApiKey ? '✓ Configured' : '✗ Not configured'}</p>
-            <p><strong>Indeed:</strong> {formData.apiKeys.indeedApiKey ? '✓ Configured' : '✗ Not configured'}</p>
-            <p><strong>Gmail:</strong> {formData.apiKeys.gmailApiKey ? '✓ Configured' : '✗ Not configured'}</p>
+            <div className="flex items-center gap-2">
+              <span className={formData.apiKeys.geminiAiKey ? "text-green-600" : "text-red-600"}>
+                {formData.apiKeys.geminiAiKey ? "✓" : "✗"}
+              </span>
+              <span>Gemini AI Key</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={formData.apiKeys.linkedinApiKey ? "text-green-600" : "text-muted-foreground"}>
+                {formData.apiKeys.linkedinApiKey ? "✓" : "○"}
+              </span>
+              <span>LinkedIn API Key (Optional)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={formData.apiKeys.naukriApiKey ? "text-green-600" : "text-muted-foreground"}>
+                {formData.apiKeys.naukriApiKey ? "✓" : "○"}
+              </span>
+              <span>Naukri API Key (Optional)</span>
+            </div>
           </CardContent>
         </Card>
       </div>

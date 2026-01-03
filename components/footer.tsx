@@ -163,17 +163,11 @@ export function Footer() {
             <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg">
               <h3 className="font-semibold text-lg mb-3">🎓 A College Project</h3>
               <p className="text-muted-foreground mb-4">
-                CareerAutomate is a Mini Project developed by students pursuing <strong>Master of Computer Applications (MCA)</strong> at <strong>BMS College of Engineering, Bangalore</strong>.
+                CareerAutomate is a Mini Project developed by students pursuing <strong>Master of Computer Applications (MCA)</strong>.
               </p>
               <p className="text-muted-foreground mb-4">
                 Our goal is to simplify the job search process for fresh graduates and experienced professionals alike, using the power of Artificial Intelligence and modern web technologies.
               </p>
-              <div className="mt-4 p-4 bg-white dark:bg-slate-800 rounded-lg">
-                <h4 className="font-medium mb-2">🏛️ Institution</h4>
-                <p className="text-sm text-muted-foreground">BMS College of Engineering</p>
-                <p className="text-sm text-muted-foreground">Bull Temple Road, Basavanagudi</p>
-                <p className="text-sm text-muted-foreground">Bangalore - 560019, Karnataka, India</p>
-              </div>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
               <h3 className="font-semibold mb-2">💻 Technology Stack</h3>
@@ -285,12 +279,6 @@ export function Footer() {
               <p className="text-sm text-muted-foreground mt-3">
                 We typically respond within 24-48 hours.
               </p>
-            </div>
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-              <h4 className="font-medium mb-2">🏛️ Institution Address</h4>
-              <p className="text-sm text-muted-foreground">BMS College of Engineering</p>
-              <p className="text-sm text-muted-foreground">Bull Temple Road, Basavanagudi</p>
-              <p className="text-sm text-muted-foreground">Bangalore - 560019, Karnataka, India</p>
             </div>
           </div>
         </DialogContent>

@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 import {
     Upload, Info, Github, RefreshCw, ExternalLink, Sparkles, Video,
     CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronUp,
-    Camera, X, FileVideo, AlertTriangle, Play, Trash2
+    Camera, X, FileVideo, AlertTriangle, Play, Trash2, Download, Edit2
 } from "lucide-react";
 import {
     Dialog,
@@ -60,6 +60,8 @@ interface ProjectVideo {
     storage_path: string;
     status: string;
     playback_url: string | null;
+    file_name?: string;
+    file_size?: number;
 }
 
 // Genre badge colors
@@ -458,6 +460,20 @@ function ProjectsPageContent() {
                 return;
             }
 
+            // Check if there's an existing video to delete first
+            const existingVideo = projectVideos[selectedRepoForVideo.id];
+            if (existingVideo && existingVideo.storage_path) {
+                try {
+                    // Delete old video from storage
+                    await supabase.storage
+                        .from('project-videos')
+                        .remove([existingVideo.storage_path]);
+                    console.log('Deleted old video:', existingVideo.storage_path);
+                } catch (err) {
+                    console.warn('Failed to delete old video (may not exist):', err);
+                }
+            }
+
             // Generate unique filename
             const fileName = `${session.user.id}/${selectedRepoForVideo.id}/${Date.now()}.webm`;
 
@@ -471,12 +487,14 @@ function ProjectsPageContent() {
 
             if (error) throw error;
 
-            // Get public URL
-            const { data: { publicUrl } } = supabase.storage
+            // Get signed URL for private bucket (valid for 1 year)
+            const { data: signedUrlData } = await supabase.storage
                 .from('project-videos')
-                .getPublicUrl(fileName);
+                .createSignedUrl(fileName, 31536000); // 1 year in seconds
 
-            // Save video record in database
+            const playbackUrl = signedUrlData?.signedUrl || null;
+
+            // Save video record in database (upsert will update if exists)
             const { error: dbError } = await supabase
                 .from('project_videos')
                 .upsert({
@@ -488,7 +506,7 @@ function ProjectsPageContent() {
                     file_size: recordedBlob.size,
                     content_type: 'video/webm',
                     status: 'uploaded',
-                    playback_url: publicUrl
+                    playback_url: playbackUrl
                 }, { onConflict: 'user_id,repo_id' });
 
             if (dbError) throw dbError;
@@ -508,7 +526,7 @@ function ProjectsPageContent() {
 
             await fetchProjectVideos(session.user.id);
 
-            setMessage({ type: 'success', text: 'Video uploaded successfully!' });
+            setMessage({ type: 'success', text: existingVideo ? 'Video updated successfully!' : 'Video uploaded successfully!' });
             closeVideoDialog();
         } catch (error: any) {
             console.error('Error uploading video:', error);
@@ -560,6 +578,38 @@ function ProjectsPageContent() {
         } catch (error: any) {
             console.error('Error deleting video:', error);
             setMessage({ type: 'error', text: 'Failed to delete video' });
+        }
+    };
+
+    const downloadVideo = async (repoId: string) => {
+        try {
+            const video = projectVideos[repoId];
+            if (!video || !video.storage_path) {
+                setMessage({ type: 'error', text: 'Video not found' });
+                return;
+            }
+
+            // Get a fresh signed URL for download
+            const { data, error } = await supabase.storage
+                .from('project-videos')
+                .createSignedUrl(video.storage_path, 3600); // 1 hour
+
+            if (error || !data?.signedUrl) {
+                throw new Error('Failed to generate download URL');
+            }
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = data.signedUrl;
+            link.download = video.file_name || `project-video-${repoId}.webm`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setMessage({ type: 'success', text: 'Video download started!' });
+        } catch (error: any) {
+            console.error('Error downloading video:', error);
+            setMessage({ type: 'error', text: error.message || 'Failed to download video' });
         }
     };
 
@@ -828,7 +878,23 @@ function ProjectsPageContent() {
                                                     </div>
                                                 )}
 
-                                                <p className="text-xs text-muted-foreground">
+                                                {/* AI-Generated Description */}
+                                                {repo.description_ai && (
+                                                    <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Sparkles className="w-4 h-4 text-purple-600" />
+                                                            <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">AI-Generated Resume Description</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                                                            {repo.description_ai}
+                                                        </p>
+                                                        <p className="mt-2 text-xs text-muted-foreground italic">
+                                                            ✨ This first-person description is ready for your resume!
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <p className="text-xs text-muted-foreground mt-3">
                                                     Last synced: {new Date(repo.last_synced_at).toLocaleString()}
                                                 </p>
                                             </div>
@@ -868,15 +934,35 @@ function ProjectsPageContent() {
                                                 ) : null}
 
                                                 {repo.has_intro_video ? (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="gap-1 text-red-600 hover:text-red-700"
-                                                        onClick={() => deleteVideo(repo.id)}
-                                                    >
-                                                        <Trash2 className="w-3 h-3" />
-                                                        Delete Video
-                                                    </Button>
+                                                    <div className="flex flex-col gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="gap-1"
+                                                            onClick={() => openVideoDialog(repo)}
+                                                        >
+                                                            <Edit2 className="w-3 h-3" />
+                                                            Update Video
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="gap-1 text-blue-600 hover:text-blue-700"
+                                                            onClick={() => downloadVideo(repo.id)}
+                                                        >
+                                                            <Download className="w-3 h-3" />
+                                                            Download
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => deleteVideo(repo.id)}
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                            Delete
+                                                        </Button>
+                                                    </div>
                                                 ) : (
                                                     <Button
                                                         size="sm"
