@@ -1,20 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { useEffect, useState, Suspense } from "react"
-import dynamic from "next/dynamic"
+import { useEffect, useState } from "react"
+import { ShaderAnimation } from "@/components/ui/shader-animation"
 import Link from "next/link"
-
-// Dynamically import the shader component to avoid SSR issues with Three.js
-const DotScreenShader = dynamic(
-  () => import("@/components/ui/dot-shader-background").then((mod) => ({ default: mod.DotScreenShader })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-950/80 via-background to-purple-950/50" />
-    )
-  }
-)
 
 export function HeroSection() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
@@ -63,29 +52,37 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Dot Shader Background */}
       <div className="absolute inset-0">
-        <DotScreenShader />
+        <ShaderAnimation />
+        {/* Gradient overlay for better text contrast */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950/40 via-background/20 to-background/40 dark:from-blue-950/60 dark:via-background/40 dark:to-background/60" />
+
+        {/* Animated blobs */}
+        <div
+          className="absolute -top-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl opacity-30 animate-pulse"
+          style={{
+            transform: `translate(${mousePosition.x * 0.05}px, ${mousePosition.y * 0.05}px)`,
+            transition: "transform 0.3s ease-out",
+          }}
+        />
+
+        <div
+          className="absolute -bottom-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl opacity-30 animate-pulse"
+          style={{
+            transform: `translate(${mousePosition.x * -0.05}px, ${mousePosition.y * -0.05}px)`,
+            transition: "transform 0.3s ease-out",
+          }}
+        />
+
+        {/* Grid pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage: `linear-gradient(0deg, transparent 24%, rgba(79, 172, 254, .05) 25%, rgba(79, 172, 254, .05) 26%, transparent 27%, transparent 74%, rgba(79, 172, 254, .05) 75%, rgba(79, 172, 254, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(79, 172, 254, .05) 25%, rgba(79, 172, 254, .05) 26%, transparent 27%, transparent 74%, rgba(79, 172, 254, .05) 75%, rgba(79, 172, 254, .05) 76%, transparent 77%, transparent)`,
+            backgroundSize: "50px 50px",
+          }}
+        />
       </div>
-
-      {/* Gradient overlay for better text contrast */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/10 to-background/30 dark:from-transparent dark:via-background/20 dark:to-background/50 pointer-events-none" />
-
-      {/* Subtle animated blobs for extra depth */}
-      <div
-        className="absolute -top-40 -left-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl opacity-30 pointer-events-none"
-        style={{
-          transform: `translate(${mousePosition.x * 0.02}px, ${mousePosition.y * 0.02}px)`,
-          transition: "transform 0.5s ease-out",
-        }}
-      />
-      <div
-        className="absolute -bottom-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl opacity-30 pointer-events-none"
-        style={{
-          transform: `translate(${mousePosition.x * -0.02}px, ${mousePosition.y * -0.02}px)`,
-          transition: "transform 0.5s ease-out",
-        }}
-      />
 
       {/* Content */}
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -93,9 +90,7 @@ export function HeroSection() {
           className={`transition-all duration-700 ${showAnimation ? "opacity-100 scale-100" : "opacity-50 scale-95"}`}
         >
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 text-balance leading-tight">
-            <span className="mix-blend-exclusion text-white dark:text-white">
-              {currentHeading.title}
-            </span>
+            {currentHeading.title}
             <br />
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
               {currentHeading.highlighted}
@@ -121,7 +116,7 @@ export function HeroSection() {
             <Button
               variant="outline"
               size="lg"
-              className="border-2 rounded-lg px-8 py-6 text-lg font-semibold hover:bg-secondary bg-transparent backdrop-blur-sm"
+              className="border-2 rounded-lg px-8 py-6 text-lg font-semibold hover:bg-secondary bg-transparent"
             >
               Log In
             </Button>
@@ -137,6 +132,21 @@ export function HeroSection() {
           />
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
+
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+      `}</style>
     </section>
   )
 }
