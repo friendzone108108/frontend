@@ -90,6 +90,7 @@ function ProjectsPageContent() {
     const [detectingGenre, setDetectingGenre] = useState<string | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [expandedRepo, setExpandedRepo] = useState<string | null>(null);
+    const [syncCooldown, setSyncCooldown] = useState(0); // Seconds remaining in cooldown
 
     // Video recording/upload states
     const [videoDialogOpen, setVideoDialogOpen] = useState(false);
@@ -104,6 +105,7 @@ function ProjectsPageContent() {
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         checkAuth();
@@ -127,6 +129,9 @@ function ProjectsPageContent() {
             }
             if (timerRef.current) {
                 clearInterval(timerRef.current);
+            }
+            if (cooldownTimerRef.current) {
+                clearInterval(cooldownTimerRef.current);
             }
         };
     }, [searchParams]);
@@ -214,6 +219,11 @@ function ProjectsPageContent() {
     };
 
     const syncRepositories = async () => {
+        if (syncCooldown > 0) {
+            setMessage({ type: 'error', text: `Please wait ${syncCooldown} seconds before syncing again.` });
+            return;
+        }
+
         setSyncing(true);
         setMessage(null);
 
@@ -235,6 +245,14 @@ function ProjectsPageContent() {
             const data = await response.json();
 
             if (!response.ok) {
+                // Handle 429 Too Many Requests (cooldown)
+                if (response.status === 429) {
+                    // Extract remaining seconds from error message
+                    const match = data.detail?.match(/wait (\d+) seconds/);
+                    const remainingSeconds = match ? parseInt(match[1]) : 180;
+                    startCooldownTimer(remainingSeconds);
+                    throw new Error(`Cooldown active: Please wait ${remainingSeconds} seconds before syncing again.`);
+                }
                 throw new Error(data.detail || 'Failed to sync repositories');
             }
 
@@ -246,6 +264,28 @@ function ProjectsPageContent() {
         } finally {
             setSyncing(false);
         }
+    };
+
+    const startCooldownTimer = (seconds: number) => {
+        setSyncCooldown(seconds);
+
+        // Clear any existing timer
+        if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+        }
+
+        // Start countdown
+        cooldownTimerRef.current = setInterval(() => {
+            setSyncCooldown(prev => {
+                if (prev <= 1) {
+                    if (cooldownTimerRef.current) {
+                        clearInterval(cooldownTimerRef.current);
+                    }
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
     };
 
     const generateAIDescription = async (repoId: string) => {
@@ -698,14 +738,20 @@ function ProjectsPageContent() {
                                     <Button
                                         variant="outline"
                                         onClick={syncRepositories}
-                                        disabled={syncing}
+                                        disabled={syncing || syncCooldown > 0}
+                                        className={syncCooldown > 0 ? 'opacity-50 cursor-not-allowed' : ''}
                                     >
                                         {syncing ? (
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                         ) : (
                                             <RefreshCw className="w-4 h-4 mr-2" />
                                         )}
-                                        {syncing ? 'Syncing...' : 'Sync Repos'}
+                                        {syncing
+                                            ? 'Syncing...'
+                                            : syncCooldown > 0
+                                                ? `Wait ${Math.floor(syncCooldown / 60)}:${(syncCooldown % 60).toString().padStart(2, '0')}`
+                                                : 'Sync Repos'
+                                        }
                                     </Button>
                                     <Button
                                         variant="ghost"
