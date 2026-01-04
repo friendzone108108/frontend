@@ -210,9 +210,11 @@ const getMinDateForDOB = (): string => {
 export function OnboardingForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubConnecting, setGithubConnecting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [formData, setFormData] = useState<FormData>({
@@ -257,6 +259,7 @@ export function OnboardingForm() {
           router.push('/login');
           return;
         }
+        setUserId(user.id);
 
         const { data: profile } = await supabase
           .from('profiles')
@@ -294,6 +297,14 @@ export function OnboardingForm() {
     }
     if (!isValidDateOfBirth(formData.dateOfBirth)) {
       setValidationError('Invalid Date of Birth. You must be between 13 and 100 years old.');
+      return false;
+    }
+    if (!formData.phoneNumber.trim()) {
+      setValidationError('Phone Number is required');
+      return false;
+    }
+    if (formData.phoneNumber.length < 10) {
+      setValidationError('Please enter a valid phone number (at least 10 digits)');
       return false;
     }
     if (formData.secondaryEmail && !isValidEmail(formData.secondaryEmail)) {
@@ -416,6 +427,7 @@ export function OnboardingForm() {
   };
 
   const handleNext = () => {
+    if (isUploading) return;
     setValidationError('');
 
     if (currentStep === 1 && !validateStep1()) return;
@@ -436,13 +448,19 @@ export function OnboardingForm() {
   };
 
   const uploadFile = async (file: File, bucket: string): Promise<string | null> => {
+    if (!userId) {
+      console.error('User ID not found for upload');
+      return null;
+    }
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    // Use consistent path to prevent garbage accumulation (overwrite existing)
+    const type = bucket === 'profile-photos' ? 'avatar' : 'govt_id';
+    // Add timestamp to query param to bust cache if needed, but file path remains same
+    const filePath = `${userId}/${type}.${fileExt}`;
 
     const { error } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file);
+      .upload(filePath, file, { upsert: true });
 
     if (error) {
       console.error('Upload error:', error);
@@ -464,7 +482,31 @@ export function OnboardingForm() {
         setValidationError('File size must be less than 5MB');
         return;
       }
-      setFormData({ ...formData, [field]: file });
+
+      setIsUploading(true);
+      try {
+        // Upload immediately
+        const bucket = field === 'profilePhoto' ? 'profile-photos' : 'government-ids';
+
+        // Delete previous file if exists to prevent garbage (optional optimization)
+        // Note: Ideally we'd delete the old file from bucket, but we only have its public URL.
+        // For now, we just upload the new one.
+
+        const url = await uploadFile(file, bucket);
+
+        if (url) {
+          setFormData(prev => ({
+            ...prev,
+            [field]: file,
+            [field === 'profilePhoto' ? 'profilePhotoUrl' : 'govtIdUrl']: url
+          }));
+        }
+      } catch (error) {
+        console.error('Upload failed:', error);
+        setValidationError('File upload failed. Please try again.');
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -534,7 +576,7 @@ export function OnboardingForm() {
       const payload = {
         full_name: formData.fullName,
         date_of_birth: formData.dateOfBirth,
-        phone_number: formData.phoneNumber ? `${formData.countryCode}${formData.phoneNumber}` : null,
+        phone_number: formData.phoneNumber ? `${formData.countryCode} ${formData.phoneNumber}` : null,
         secondary_email: formData.secondaryEmail || null,
         address: formData.address,
         profile_photo_url: formData.profilePhotoUrl || null,
@@ -615,7 +657,7 @@ export function OnboardingForm() {
           </div>
         )}
 
-        {currentStep === 1 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
+        {currentStep === 1 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} isUploading={isUploading} />}
         {currentStep === 2 && <Step2Academics formData={formData} setFormData={setFormData} />}
         {currentStep === 3 && <Step3Career formData={formData} setFormData={setFormData} />}
         {currentStep === 4 && <Step4GitHub githubConnected={githubConnected} setGithubConnected={setGithubConnected} githubConnecting={githubConnecting} setGithubConnecting={setGithubConnecting} />}
@@ -656,63 +698,18 @@ export function OnboardingForm() {
   );
 }
 
-function Step1Personal({ formData, setFormData, handleFileChange }: any) {
-  const [skillInput, setSkillInput] = useState('');
-
-  const addEducation = () => {
-    setFormData({
-      ...formData,
-      education: [...formData.education, {
-        degreeType: '',
-        degreeName: '',
-        institution: '',
-        gradeType: 'percentage',
-        obtainedMarks: '',
-        totalMarks: '',
-        obtainedCGPA: '',
-        maxCGPA: '10',
-        yearOfCompletion: ''
-      }]
-    });
-  };
-
-  const updateEducation = (index: number, field: string, value: string) => {
-    const updated = [...formData.education];
-    updated[index] = { ...updated[index], [field]: value };
-
-    // Reset degree name when degree type changes
-    if (field === 'degreeType') {
-      updated[index].degreeName = '';
-    }
-
-    // Reset grade fields when grade type changes
-    if (field === 'gradeType') {
-      updated[index].obtainedMarks = '';
-      updated[index].totalMarks = '';
-      updated[index].obtainedCGPA = '';
-      updated[index].maxCGPA = '10';
-    }
-
-    setFormData({ ...formData, education: updated });
-  };
-
-  const removeEducation = (index: number) => {
-    setFormData({
-      ...formData,
-      education: formData.education.filter((_: any, i: number) => i !== index)
-    });
-  };
-
-  const addSkill = () => {
-    if (skillInput.trim()) {
-      setFormData({ ...formData, skills: [...formData.skills, skillInput.trim()] });
-      setSkillInput('');
-    }
-  };
-
-  const removeSkill = (index: number) => {
-    setFormData({ ...formData, skills: formData.skills.filter((_: any, i: number) => i !== index) });
-  };
+// Step 1: Personal Details
+function Step1Personal({ formData, setFormData, handleFileChange, isUploading }: any) {
+  const COUNTRY_CODES = [
+    { code: '+91', country: 'India' },
+    { code: '+1', country: 'USA' },
+    { code: '+44', country: 'UK' },
+    { code: '+61', country: 'Australia' },
+    { code: '+81', country: 'Japan' },
+    { code: '+49', country: 'Germany' },
+    { code: '+33', country: 'France' },
+    { code: '+86', country: 'China' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -748,6 +745,38 @@ function Step1Personal({ formData, setFormData, handleFileChange }: any) {
           />
           <p className="text-xs text-muted-foreground">You must be at least 13 years old</p>
         </div>
+
+        {/* Phone Number Field */}
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number *</Label>
+          <div className="flex gap-2">
+            <Select
+              value={formData.countryCode}
+              onValueChange={(value) => setFormData({ ...formData, countryCode: value })}
+            >
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="+91" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRY_CODES.map((item) => (
+                  <SelectItem key={item.code} value={item.code}>
+                    {item.code} ({item.country})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '') })}
+              placeholder="9876543210"
+              maxLength={15}
+              className="flex-1"
+            />
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="secondaryEmail">Secondary Email Address (Optional)</Label>
           <Input
@@ -758,7 +787,7 @@ function Step1Personal({ formData, setFormData, handleFileChange }: any) {
             placeholder="you@example.com"
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 md:col-span-2">
           <Label htmlFor="address">Address *</Label>
           <Input
             id="address"
@@ -770,270 +799,80 @@ function Step1Personal({ formData, setFormData, handleFileChange }: any) {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label>Profile Photo *</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png"
-              onChange={(e) => handleFileChange(e, 'profilePhoto')}
-            />
-            {formData.profilePhoto && <span className="text-sm text-green-600">✓ {formData.profilePhoto.name}</span>}
-          </div>
-          <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Government Photo ID Proof *</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,application/pdf"
-              onChange={(e) => handleFileChange(e, 'govtId')}
-            />
-            {formData.govtId && <span className="text-sm text-green-600">✓ {formData.govtId.name}</span>}
-          </div>
-          <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG, PDF</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="linkedin">LinkedIn Profile URL *</Label>
-          <Input
-            id="linkedin"
-            value={formData.linkedinUrl}
-            onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-            placeholder="https://linkedin.com/in/yourprofile"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="github">GitHub Username *</Label>
-          <Input
-            id="github"
-            value={formData.githubUsername}
-            onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
-            placeholder="yourusername"
-          />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Academic & Skill Details</h3>
-        <div className="space-y-2">
-          <Label>Skills *</Label>
-          <div className="flex gap-2">
-            <Input
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-              placeholder="e.g. Python, React, Data Analysis"
-            />
-            <Button type="button" onClick={addSkill}>Add</Button>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {formData.skills.map((skill: string, index: number) => (
-              <span key={index} className="bg-primary/10 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                {skill}
-                <button onClick={() => removeSkill(index)} className="text-red-500">×</button>
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Education Section - Redesigned */}
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">Education Details</Label>
-            <Button variant="outline" size="sm" onClick={addEducation} type="button" className="gap-1">
-              <Plus className="w-4 h-4" /> Add Education
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            Add your educational qualifications (10th, 12th, UG, PG, etc.)
-          </p>
-
-          {formData.education.length === 0 && (
-            <div className="p-6 border-2 border-dashed rounded-lg text-center text-muted-foreground">
-              <p>No education added yet. Click "Add Education" to add your qualifications.</p>
+      <div className="space-y-4 pt-4 border-t">
+        <h3 className="text-lg font-semibold">Documents</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label>Profile Photo *</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={(e) => handleFileChange(e, 'profilePhoto')}
+                disabled={isUploading}
+              />
+              {isUploading && !formData.profilePhotoUrl && <p className="text-xs text-blue-600 animate-pulse">Uploading...</p>}
+              {formData.profilePhotoUrl && (
+                <div className="flex items-center gap-2 text-green-600 text-sm">
+                  <span>✓ Uploaded</span>
+                  <a href={formData.profilePhotoUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-500">View</a>
+                </div>
+              )}
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG</p>
+          </div>
 
-          {formData.education.map((edu: Education, index: number) => (
-            <Card key={index} className="p-4">
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <span className="font-medium text-sm text-muted-foreground">Education #{index + 1}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeEducation(index)} className="text-red-500 hover:text-red-700">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+          <div className="space-y-2">
+            <Label>Government Photo ID Proof *</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,application/pdf"
+                onChange={(e) => handleFileChange(e, 'govtId')}
+                disabled={isUploading}
+              />
+              {isUploading && !formData.govtIdUrl && <p className="text-xs text-blue-600 animate-pulse">Uploading...</p>}
+              {formData.govtIdUrl && (
+                <div className="flex items-center gap-2 text-green-600 text-sm">
+                  <span>✓ Uploaded</span>
+                  <a href={formData.govtIdUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-500">View</a>
                 </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Max 5MB, formats: JPEG, JPG, PNG, PDF</p>
+          </div>
+        </div>
+      </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Degree Type */}
-                  <div className="space-y-2">
-                    <Label>Degree Type *</Label>
-                    <Select
-                      value={edu.degreeType}
-                      onValueChange={(value) => updateEducation(index, 'degreeType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select degree type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEGREE_TYPES.map(type => (
-                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Degree Name */}
-                  <div className="space-y-2">
-                    <Label>Degree Name *</Label>
-                    <Select
-                      value={edu.degreeName}
-                      onValueChange={(value) => updateEducation(index, 'degreeName', value)}
-                      disabled={!edu.degreeType}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={edu.degreeType ? "Select degree name" : "Select degree type first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {edu.degreeType && DEGREE_NAMES[edu.degreeType]?.map(degree => (
-                          <SelectItem key={degree.value} value={degree.value}>{degree.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Institution */}
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>College/University/School Name *</Label>
-                    <Input
-                      placeholder="Enter your institution name"
-                      value={edu.institution}
-                      onChange={(e) => updateEducation(index, 'institution', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Grade Type Toggle */}
-                  <div className="space-y-2">
-                    <Label>Grade Type</Label>
-                    <Select
-                      value={edu.gradeType}
-                      onValueChange={(value) => updateEducation(index, 'gradeType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">Percentage</SelectItem>
-                        <SelectItem value="cgpa">CGPA</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Year of Completion */}
-                  <div className="space-y-2">
-                    <Label>Year of Completion</Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 2023"
-                      value={edu.yearOfCompletion}
-                      onChange={(e) => updateEducation(index, 'yearOfCompletion', e.target.value)}
-                      min="1990"
-                      max={new Date().getFullYear() + 5}
-                    />
-                  </div>
-
-                  {/* Percentage Fields */}
-                  {edu.gradeType === 'percentage' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Marks Obtained</Label>
-                        <Input
-                          type="number"
-                          placeholder="e.g. 450"
-                          value={edu.obtainedMarks}
-                          onChange={(e) => updateEducation(index, 'obtainedMarks', e.target.value)}
-                          min="0"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Total Marks</Label>
-                        <Input
-                          type="number"
-                          placeholder="e.g. 500"
-                          value={edu.totalMarks}
-                          onChange={(e) => updateEducation(index, 'totalMarks', e.target.value)}
-                          min="1"
-                        />
-                        {edu.obtainedMarks && edu.totalMarks && (
-                          parseFloat(edu.obtainedMarks) > parseFloat(edu.totalMarks) ? (
-                            <p className="text-xs text-red-600 font-medium">
-                              ❌ Error: Obtained ({edu.obtainedMarks}) cannot exceed Total ({edu.totalMarks})
-                            </p>
-                          ) : (
-                            <p className="text-xs text-green-600 font-medium">
-                              ✓ Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
-                            </p>
-                          )
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* CGPA Fields */}
-                  {edu.gradeType === 'cgpa' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>CGPA Obtained</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g. 8.5"
-                          value={edu.obtainedCGPA}
-                          onChange={(e) => updateEducation(index, 'obtainedCGPA', e.target.value)}
-                          min="0"
-                          max={parseFloat(edu.maxCGPA || '10')}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Maximum CGPA</Label>
-                        <Select
-                          value={edu.maxCGPA || '10'}
-                          onValueChange={(value) => updateEducation(index, 'maxCGPA', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="5">5</SelectItem>
-                            <SelectItem value="4">4</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {edu.obtainedCGPA && edu.maxCGPA && (
-                          parseFloat(edu.obtainedCGPA) > parseFloat(edu.maxCGPA) ? (
-                            <p className="text-xs text-red-600 font-medium">
-                              ❌ Error: CGPA ({edu.obtainedCGPA}) cannot exceed Max ({edu.maxCGPA})
-                            </p>
-                          ) : (
-                            <p className="text-xs text-green-600 font-medium">
-                              ✓ CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
-                            </p>
-                          )
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+      <div className="space-y-4 pt-4 border-t">
+        <h3 className="text-lg font-semibold">Social Links</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="linkedin">LinkedIn Profile URL *</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-muted-foreground w-4 h-4">in</span>
+              <Input
+                id="linkedin"
+                value={formData.linkedinUrl}
+                onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+                placeholder="https://linkedin.com/in/yourprofile"
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="github">GitHub Username *</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-muted-foreground w-4 h-4">gh</span>
+              <Input
+                id="github"
+                value={formData.githubUsername}
+                onChange={(e) => setFormData({ ...formData, githubUsername: e.target.value })}
+                placeholder="yourusername"
+                className="pl-8"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1682,15 +1521,7 @@ function Step4GitHub({ githubConnected, setGithubConnected, githubConnecting, se
         </p>
       )}
 
-      <Card>
-        <CardContent className="pt-6 flex items-center justify-between">
-          <div>
-            <p className="font-semibold">Connect a Job Platform Account</p>
-            <p className="text-sm text-muted-foreground">Connect LinkedIn, Naukri, or Indeed. (Coming Soon)</p>
-          </div>
-          <Button disabled>Connect (Coming Soon)</Button>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
@@ -1735,6 +1566,8 @@ function Step5APIKeys({ formData, setFormData }: any) {
           <p className="text-xs text-muted-foreground">Required for AI-powered features like resume generation and project descriptions</p>
         </div>
 
+        {/* Optional API Keys - Temporarily hidden as per request */}
+        {/* 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="linkedin-api">LinkedIn API Key (Optional)</Label>
@@ -1789,16 +1622,17 @@ function Step5APIKeys({ formData, setFormData }: any) {
           />
         </div>
 
-        <div className="space-y-2">
+         <div className="space-y-2">
           <Label htmlFor="gmail-api">Gmail API Key (Optional)</Label>
           <Input
-            id="gmail-api"
+             id="gmail-api"
             type="password"
             value={formData.apiKeys.gmailApiKey}
             onChange={(e) => setFormData({ ...formData, apiKeys: { ...formData.apiKeys, gmailApiKey: e.target.value } })}
             placeholder="Enter your Gmail API Key"
           />
         </div>
+        */}
       </div>
     </div>
   );
@@ -1813,9 +1647,17 @@ function Step6Review({ formData, githubConnected }: any) {
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Personal Details</CardTitle>
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg">Personal Details</CardTitle>
+              {formData.profilePhotoUrl && (
+                <div className="w-16 h-16 rounded-full overflow-hidden border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={formData.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 text-sm">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Full Name:</span>
               <p className="font-medium">{formData.fullName}</p>
@@ -1825,62 +1667,126 @@ function Step6Review({ formData, githubConnected }: any) {
               <p className="font-medium">{formData.dateOfBirth}</p>
             </div>
             <div>
+              <span className="text-muted-foreground">Phone Number:</span>
+              <p className="font-medium">{formData.countryCode} {formData.phoneNumber}</p>
+            </div>
+            <div>
               <span className="text-muted-foreground">Secondary Email:</span>
               <p className="font-medium">{formData.secondaryEmail || 'Not provided'}</p>
             </div>
-            <div>
+            <div className="md:col-span-2">
               <span className="text-muted-foreground">Address:</span>
               <p className="font-medium">{formData.address}</p>
             </div>
-            <div>
-              <span className="text-muted-foreground">LinkedIn:</span>
-              <p className="font-medium truncate">{formData.linkedinUrl}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">GitHub:</span>
-              <p className="font-medium">{formData.githubUsername}</p>
+
+            <div className="md:col-span-2 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-muted-foreground block mb-1">Documents:</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">Profile Photo:</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">{formData.profilePhoto?.name || 'Uploaded'}</span>
+                    {formData.profilePhotoUrl && <a href={formData.profilePhotoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline text-xs">View</a>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">Govt ID:</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">{formData.govtId?.name || 'Uploaded'}</span>
+                    {formData.govtIdUrl && <a href={formData.govtIdUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline text-xs">View</a>}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground block mb-1">Social Links:</span>
+                <div className="space-y-1">
+                  <div>
+                    <span className="text-xs font-medium">LinkedIn: </span>
+                    <a href={formData.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline text-xs truncate block">{formData.linkedinUrl}</a>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium">GitHub: </span>
+                    <span className="text-xs">{formData.githubUsername}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
+        {formData.summary && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Professional Summary</CardTitle></CardHeader>
+            <CardContent><p className="text-sm whitespace-pre-wrap">{formData.summary}</p></CardContent>
+          </Card>
+        )}
+
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Skills</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg">Skills</CardTitle></CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {formData.skills.map((skill: string, index: number) => (
-                <span key={index} className="bg-primary/10 px-3 py-1 rounded-full text-sm">
-                  {skill}
-                </span>
+                <span key={index} className="bg-primary/10 px-3 py-1 rounded-full text-sm">{skill}</span>
               ))}
             </div>
           </CardContent>
         </Card>
 
+        {formData.experience.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Experience</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {formData.experience.map((exp: any, i: number) => (
+                <div key={i} className="p-3 bg-muted/50 rounded-lg text-sm">
+                  <p className="font-bold">{exp.jobTitle} at {exp.companyName}</p>
+                  <p className="text-xs text-muted-foreground">{exp.location} • {exp.startDate} - {exp.isCurrent ? 'Present' : exp.endDate}</p>
+                  <p className="mt-1">{exp.description}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {formData.education.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Education</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg">Education</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {formData.education.map((edu: Education, index: number) => (
-                <div key={index} className="p-3 bg-muted/50 rounded-lg">
+                <div key={index} className="p-3 bg-muted/50 rounded-lg text-sm">
                   <p className="font-medium">{edu.degreeName} ({edu.degreeType})</p>
-                  <p className="text-sm text-muted-foreground">{edu.institution}</p>
-                  {edu.gradeType === 'percentage' && edu.obtainedMarks && edu.totalMarks && (
-                    <p className="text-sm text-muted-foreground">
-                      Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
-                    </p>
-                  )}
-                  {edu.gradeType === 'cgpa' && edu.obtainedCGPA && (
-                    <p className="text-sm text-muted-foreground">
-                      CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
-                    </p>
-                  )}
-                  {edu.yearOfCompletion && (
-                    <p className="text-sm text-muted-foreground">Year: {edu.yearOfCompletion}</p>
-                  )}
+                  <p className="text-muted-foreground">{edu.institution}</p>
+                  <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                    <span>Year: {edu.yearOfCompletion}</span>
+                    {edu.gradeType === 'percentage' && <span>Result: {edu.obtainedMarks}/{edu.totalMarks}</span>}
+                    {edu.gradeType === 'cgpa' && <span>CGPA: {edu.obtainedCGPA}/{edu.maxCGPA}</span>}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {formData.achievements.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Achievements</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {formData.achievements.map((ach: any, i: number) => (
+                <div key={i} className="p-3 bg-muted/50 rounded-lg text-sm">
+                  <p className="font-bold">{ach.title}</p>
+                  <p className="text-xs text-muted-foreground">{ach.issuer} • {ach.date}</p>
+                  <p className="mt-1">{ach.description}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {formData.certifications.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Certifications</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {formData.certifications.map((cert: any, i: number) => (
+                <div key={i} className="p-3 bg-muted/50 rounded-lg text-sm">
+                  <p className="font-bold">{cert.name}</p>
+                  <p className="text-xs text-muted-foreground">{cert.issuingOrganization} • {cert.issueDate}</p>
                 </div>
               ))}
             </CardContent>
@@ -1901,12 +1807,8 @@ function Step6Review({ formData, githubConnected }: any) {
               <p className="font-medium">{formData.targetLpa} LPA</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Preferred Locations:</span>
+              <span className="text-muted-foreground">Locations:</span>
               <p className="font-medium">{formData.preferredLocations.join(', ')}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Work Preference:</span>
-              <p className="font-medium">{formData.workPreference.join(', ') || 'Not specified'}</p>
             </div>
           </CardContent>
         </Card>
@@ -1922,18 +1824,7 @@ function Step6Review({ formData, githubConnected }: any) {
               </span>
               <span>Gemini AI Key</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={formData.apiKeys.linkedinApiKey ? "text-green-600" : "text-muted-foreground"}>
-                {formData.apiKeys.linkedinApiKey ? "✓" : "○"}
-              </span>
-              <span>LinkedIn API Key (Optional)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={formData.apiKeys.naukriApiKey ? "text-green-600" : "text-muted-foreground"}>
-                {formData.apiKeys.naukriApiKey ? "✓" : "○"}
-              </span>
-              <span>Naukri API Key (Optional)</span>
-            </div>
+            <p className="text-xs text-muted-foreground mt-2">Other optional keys (LinkedIn, Naukri, Indeed, Gmail) are {formData.apiKeys.linkedinApiKey || formData.apiKeys.naukriApiKey || formData.apiKeys.indeedApiKey || formData.apiKeys.gmailApiKey ? 'partially provided' : 'not provided'}.</p>
           </CardContent>
         </Card>
       </div>
