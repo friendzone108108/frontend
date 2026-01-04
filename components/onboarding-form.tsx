@@ -15,11 +15,12 @@ import { Upload, Info, Trash2, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const steps = [
-  { id: 1, title: 'Profile & Career Setup' },
-  { id: 2, title: 'Career Questionnaire' },
-  { id: 3, title: 'Connect your accounts' },
-  { id: 4, title: 'Setup Account APIs' },
-  { id: 5, title: 'Review & Finish' },
+  { id: 1, title: 'Personal Details' },
+  { id: 2, title: 'Skills & Academics' },
+  { id: 3, title: 'Career Questionnaire' },
+  { id: 4, title: 'Connect Accounts' },
+  { id: 5, title: 'API Keys Setup' },
+  { id: 6, title: 'Review & Finish' },
 ];
 
 // Degree type options
@@ -98,6 +99,34 @@ interface Education {
   yearOfCompletion: string;
 }
 
+interface Experience {
+  jobTitle: string;
+  companyName: string;
+  location: string;
+  employmentType: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+  skillsUsed: string[];
+}
+
+interface Achievement {
+  title: string;
+  issuer: string;
+  date: string;
+  description: string;
+}
+
+interface Certification {
+  name: string;
+  issuingOrganization: string;
+  issueDate: string;
+  expiryDate: string;
+  credentialId: string;
+  credentialUrl: string;
+}
+
 interface FormData {
   fullName: string;
   dateOfBirth: string;
@@ -109,8 +138,12 @@ interface FormData {
   govtIdUrl: string;
   linkedinUrl: string;
   githubUsername: string;
+  summary: string;
   skills: string[];
   education: Education[];
+  experience: Experience[];
+  achievements: Achievement[];
+  certifications: Certification[];
   preferredRoles: string[];
   targetLpa: string;
   preferredLocations: string[];
@@ -190,8 +223,12 @@ export function OnboardingForm() {
     govtIdUrl: '',
     linkedinUrl: '',
     githubUsername: '',
+    summary: '',
     skills: [],
     education: [],
+    experience: [],
+    achievements: [],
+    certifications: [],
     preferredRoles: [],
     targetLpa: '',
     preferredLocations: [],
@@ -286,6 +323,12 @@ export function OnboardingForm() {
       setValidationError('GitHub Username is required');
       return false;
     }
+
+    return true;
+  };
+
+  // Step 2: Skills & Academics validation
+  const validateStep2 = (): boolean => {
     if (formData.skills.length === 0) {
       setValidationError('At least one skill is required');
       return false;
@@ -322,7 +365,8 @@ export function OnboardingForm() {
     return true;
   };
 
-  const validateStep2 = (): boolean => {
+  // Step 3: Career Questionnaire validation
+  const validateStep3 = (): boolean => {
     if (formData.preferredRoles.length === 0) {
       setValidationError('Please select at least one preferred job role');
       return false;
@@ -343,18 +387,18 @@ export function OnboardingForm() {
     return true;
   };
 
-  const validateStep3 = (): boolean => {
+  // Step 4: Connect Accounts validation (GitHub is optional)
+  const validateStep4 = (): boolean => {
     // GitHub connection is optional but recommended
     // User can proceed even without connecting
-    // Just show a warning but don't block
     if (!githubConnected) {
-      // Show info message but allow proceed
       console.log('GitHub not connected - proceeding without it');
     }
     return true; // Always allow proceeding
   };
 
-  const validateStep4 = (): boolean => {
+  // Step 5: API Keys validation
+  const validateStep5 = (): boolean => {
     if (!formData.apiKeys.geminiAiKey.trim()) {
       setValidationError('Gemini AI Key is required for AI features');
       return false;
@@ -373,6 +417,7 @@ export function OnboardingForm() {
     if (currentStep === 2 && !validateStep2()) return;
     if (currentStep === 3 && !validateStep3()) return;
     if (currentStep === 4 && !validateStep4()) return;
+    if (currentStep === 5 && !validateStep5()) return;
 
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
@@ -444,10 +489,40 @@ export function OnboardingForm() {
         obtained_cgpa: edu.gradeType === 'cgpa' ? edu.obtainedCGPA : null,
         max_cgpa: edu.gradeType === 'cgpa' ? edu.maxCGPA : null,
         year_of_completion: edu.yearOfCompletion,
-        // Calculate percentage/cgpa for display
         percentage: edu.gradeType === 'percentage' && edu.obtainedMarks && edu.totalMarks
           ? ((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)
           : null,
+      }));
+
+      // Format experience data for backend
+      const formattedExperience = formData.experience.map(exp => ({
+        job_title: exp.jobTitle,
+        company_name: exp.companyName,
+        location: exp.location,
+        employment_type: exp.employmentType,
+        start_date: exp.startDate,
+        end_date: exp.isCurrent ? 'Present' : exp.endDate,
+        is_current: exp.isCurrent,
+        description: exp.description,
+        skills_used: exp.skillsUsed,
+      }));
+
+      // Format achievements for backend
+      const formattedAchievements = formData.achievements.map(ach => ({
+        title: ach.title,
+        issuer: ach.issuer,
+        date: ach.date,
+        description: ach.description,
+      }));
+
+      // Format certifications for backend
+      const formattedCertifications = formData.certifications.map(cert => ({
+        name: cert.name,
+        issuing_organization: cert.issuingOrganization,
+        issue_date: cert.issueDate,
+        expiry_date: cert.expiryDate,
+        credential_id: cert.credentialId,
+        credential_url: cert.credentialUrl,
       }));
 
       // Prepare payload to match backend schema strictly
@@ -460,8 +535,12 @@ export function OnboardingForm() {
         govt_id_url: formData.govtIdUrl || null,
         linkedin_url: formData.linkedinUrl || null,
         github_username: formData.githubUsername || null,
+        summary: formData.summary || null,
         skills: formData.skills,
         education: formattedEducation,
+        experience: formattedExperience,
+        achievements: formattedAchievements,
+        certifications: formattedCertifications,
         career_preferences: {
           roles_targeted: formData.preferredRoles,
           min_target_lpa: formData.targetLpa ? parseInt(formData.targetLpa) : null,
@@ -530,15 +609,16 @@ export function OnboardingForm() {
           </div>
         )}
 
-        {currentStep === 1 && <Step1 formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
-        {currentStep === 2 && <Step2 formData={formData} setFormData={setFormData} />}
-        {currentStep === 3 && <Step3 githubConnected={githubConnected} setGithubConnected={setGithubConnected} githubConnecting={githubConnecting} setGithubConnecting={setGithubConnecting} />}
-        {currentStep === 4 && <Step4 formData={formData} setFormData={setFormData} />}
-        {currentStep === 5 && <Step5 formData={formData} />}
+        {currentStep === 1 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
+        {currentStep === 2 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
+        {currentStep === 3 && <Step3Career formData={formData} setFormData={setFormData} />}
+        {currentStep === 4 && <Step4GitHub githubConnected={githubConnected} setGithubConnected={setGithubConnected} githubConnecting={githubConnecting} setGithubConnecting={setGithubConnecting} />}
+        {currentStep === 5 && <Step5APIKeys formData={formData} setFormData={setFormData} />}
+        {currentStep === 6 && <Step6Review formData={formData} githubConnected={githubConnected} />}
 
         <div className="flex flex-col gap-4 mt-8">
-          {/* Terms and Conditions notice for Step 5 */}
-          {currentStep === 5 && (
+          {/* Terms and Conditions notice for Step 6 */}
+          {currentStep === 6 && (
             <p className="text-center text-sm text-muted-foreground">
               By clicking Finish, you agree to our{' '}
               <a href="/terms" target="_blank" className="text-blue-600 hover:underline font-medium">Terms of Service</a>
@@ -570,7 +650,7 @@ export function OnboardingForm() {
   );
 }
 
-function Step1({ formData, setFormData, handleFileChange }: any) {
+function Step1Personal({ formData, setFormData, handleFileChange }: any) {
   const [skillInput, setSkillInput] = useState('');
 
   const addEducation = () => {
@@ -954,7 +1034,7 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
   );
 }
 
-function Step2({ formData, setFormData }: any) {
+function Step3Career({ formData, setFormData }: any) {
   const roles = ["Software Engineer", "Data Scientist", "Product Manager", "UX/UI Designer", "DevOps Engineer", "Cybersecurity", "Machine Learning", "Blockchain Dev", "Others"];
 
   const toggleRole = (role: string) => {
@@ -1089,7 +1169,7 @@ function Step2({ formData, setFormData }: any) {
   );
 }
 
-function Step3({ githubConnected, setGithubConnected, githubConnecting, setGithubConnecting }: {
+function Step4GitHub({ githubConnected, setGithubConnected, githubConnecting, setGithubConnecting }: {
   githubConnected: boolean;
   setGithubConnected: (value: boolean) => void;
   githubConnecting: boolean;
@@ -1211,7 +1291,7 @@ function Step3({ githubConnected, setGithubConnected, githubConnecting, setGithu
   );
 }
 
-function Step4({ formData, setFormData }: any) {
+function Step5APIKeys({ formData, setFormData }: any) {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Setup Account APIs</h2>
@@ -1320,7 +1400,7 @@ function Step4({ formData, setFormData }: any) {
   );
 }
 
-function Step5({ formData }: any) {
+function Step6Review({ formData, githubConnected }: any) {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Review Your Information</h2>
