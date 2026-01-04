@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -130,6 +131,8 @@ interface Certification {
 interface FormData {
   fullName: string;
   dateOfBirth: string;
+  countryCode: string;
+  phoneNumber: string;
   secondaryEmail: string;
   address: string;
   profilePhoto: File | null;
@@ -215,6 +218,8 @@ export function OnboardingForm() {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     dateOfBirth: '',
+    countryCode: '+91',
+    phoneNumber: '',
     secondaryEmail: '',
     address: '',
     profilePhoto: null,
@@ -529,6 +534,7 @@ export function OnboardingForm() {
       const payload = {
         full_name: formData.fullName,
         date_of_birth: formData.dateOfBirth,
+        phone_number: formData.phoneNumber ? `${formData.countryCode}${formData.phoneNumber}` : null,
         secondary_email: formData.secondaryEmail || null,
         address: formData.address,
         profile_photo_url: formData.profilePhotoUrl || null,
@@ -610,7 +616,7 @@ export function OnboardingForm() {
         )}
 
         {currentStep === 1 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
-        {currentStep === 2 && <Step1Personal formData={formData} setFormData={setFormData} handleFileChange={handleFileChange} />}
+        {currentStep === 2 && <Step2Academics formData={formData} setFormData={setFormData} />}
         {currentStep === 3 && <Step3Career formData={formData} setFormData={setFormData} />}
         {currentStep === 4 && <Step4GitHub githubConnected={githubConnected} setGithubConnected={setGithubConnected} githubConnecting={githubConnecting} setGithubConnecting={setGithubConnecting} />}
         {currentStep === 5 && <Step5APIKeys formData={formData} setFormData={setFormData} />}
@@ -1029,6 +1035,404 @@ function Step1Personal({ formData, setFormData, handleFileChange }: any) {
             </Card>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Step 2: Skills & Academics
+function Step2Academics({ formData, setFormData }: any) {
+  const [skillInput, setSkillInput] = useState('');
+
+  const addSkill = () => {
+    if (skillInput.trim()) {
+      setFormData({ ...formData, skills: [...formData.skills, skillInput.trim()] });
+      setSkillInput('');
+    }
+  };
+
+  const removeSkill = (index: number) => {
+    setFormData({ ...formData, skills: formData.skills.filter((_: any, i: number) => i !== index) });
+  };
+
+  const addEducation = () => {
+    setFormData({
+      ...formData,
+      education: [...formData.education, {
+        degreeType: '',
+        degreeName: '',
+        institution: '',
+        gradeType: 'percentage',
+        obtainedMarks: '',
+        totalMarks: '',
+        obtainedCGPA: '',
+        maxCGPA: '10',
+        yearOfCompletion: ''
+      }]
+    });
+  };
+
+  const updateEducation = (index: number, field: string, value: string) => {
+    const updated = [...formData.education];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === 'degreeType') updated[index].degreeName = '';
+    if (field === 'gradeType') {
+      updated[index].obtainedMarks = '';
+      updated[index].totalMarks = '';
+      updated[index].obtainedCGPA = '';
+      updated[index].maxCGPA = '10';
+    }
+    setFormData({ ...formData, education: updated });
+  };
+
+  const removeEducation = (index: number) => {
+    setFormData({ ...formData, education: formData.education.filter((_: any, i: number) => i !== index) });
+  };
+
+  const addExperience = () => {
+    setFormData({
+      ...formData,
+      experience: [...formData.experience, {
+        jobTitle: '', companyName: '', location: '', employmentType: 'full-time',
+        startDate: '', endDate: '', isCurrent: false, description: '', skillsUsed: []
+      }]
+    });
+  };
+
+  const updateExperience = (index: number, field: string, value: any) => {
+    const updated = [...formData.experience];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData({ ...formData, experience: updated });
+  };
+
+  const removeExperience = (index: number) => {
+    setFormData({ ...formData, experience: formData.experience.filter((_: any, i: number) => i !== index) });
+  };
+
+  const addAchievement = () => {
+    setFormData({
+      ...formData,
+      achievements: [...formData.achievements, { title: '', issuer: '', date: '', description: '' }]
+    });
+  };
+
+  const updateAchievement = (index: number, field: string, value: string) => {
+    const updated = [...formData.achievements];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData({ ...formData, achievements: updated });
+  };
+
+  const removeAchievement = (index: number) => {
+    setFormData({ ...formData, achievements: formData.achievements.filter((_: any, i: number) => i !== index) });
+  };
+
+  const addCertification = () => {
+    setFormData({
+      ...formData,
+      certifications: [...formData.certifications, {
+        name: '', issuingOrganization: '', issueDate: '', expiryDate: '', credentialId: '', credentialUrl: ''
+      }]
+    });
+  };
+
+  const updateCertification = (index: number, field: string, value: string) => {
+    const updated = [...formData.certifications];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData({ ...formData, certifications: updated });
+  };
+
+  const removeCertification = (index: number) => {
+    setFormData({ ...formData, certifications: formData.certifications.filter((_: any, i: number) => i !== index) });
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold">Skills & Academics</h2>
+        <p className="text-muted-foreground">Tell us about your skills, education, experience, and achievements.</p>
+      </div>
+
+      {/* Skills Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Technical Skills *</h3>
+        <div className="flex gap-2">
+          <Input
+            value={skillInput}
+            onChange={(e) => setSkillInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+            placeholder="e.g. Python, React, Data Analysis"
+          />
+          <Button type="button" onClick={addSkill}>Add</Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {formData.skills.map((skill: string, index: number) => (
+            <span key={index} className="bg-primary/10 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+              {skill}
+              <button onClick={() => removeSkill(index)} className="text-red-500 hover:text-red-700">×</button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Professional Summary */}
+      <div className="space-y-2">
+        <Label>Professional Summary (Optional)</Label>
+        <Textarea
+          value={formData.summary}
+          onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+          placeholder="Brief summary of your professional background and career goals..."
+          rows={3}
+        />
+      </div>
+
+      {/* Education Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Education</h3>
+          <Button variant="outline" size="sm" onClick={addEducation} type="button" className="gap-1">
+            <Plus className="w-4 h-4" /> Add Education
+          </Button>
+        </div>
+        {formData.education.length === 0 && (
+          <div className="p-4 border-2 border-dashed rounded-lg text-center text-muted-foreground">
+            No education added. Click "Add Education" to add your qualifications.
+          </div>
+        )}
+        {formData.education.map((edu: any, index: number) => (
+          <Card key={index} className="p-4">
+            <div className="flex justify-between items-start mb-3">
+              <span className="font-medium text-sm text-muted-foreground">Education #{index + 1}</span>
+              <Button variant="ghost" size="sm" onClick={() => removeEducation(index)} className="text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Degree Type *</Label>
+                <Select value={edu.degreeType} onValueChange={(v) => updateEducation(index, 'degreeType', v)}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    {DEGREE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Degree Name *</Label>
+                <Select value={edu.degreeName} onValueChange={(v) => updateEducation(index, 'degreeName', v)} disabled={!edu.degreeType}>
+                  <SelectTrigger><SelectValue placeholder={edu.degreeType ? "Select degree" : "Select type first"} /></SelectTrigger>
+                  <SelectContent>
+                    {edu.degreeType && DEGREE_NAMES[edu.degreeType]?.map((d: any) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Institution Name *</Label>
+                <Input placeholder="College/University/School" value={edu.institution} onChange={(e) => updateEducation(index, 'institution', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Grade Type</Label>
+                <Select value={edu.gradeType} onValueChange={(v) => updateEducation(index, 'gradeType', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="cgpa">CGPA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Year of Completion</Label>
+                <Input type="number" placeholder="2024" value={edu.yearOfCompletion} onChange={(e) => updateEducation(index, 'yearOfCompletion', e.target.value)} min="1990" max={new Date().getFullYear() + 5} />
+              </div>
+              {edu.gradeType === 'percentage' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Marks Obtained</Label>
+                    <Input type="number" placeholder="450" value={edu.obtainedMarks} onChange={(e) => updateEducation(index, 'obtainedMarks', e.target.value)} min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Total Marks</Label>
+                    <Input type="number" placeholder="500" value={edu.totalMarks} onChange={(e) => updateEducation(index, 'totalMarks', e.target.value)} min="1" />
+                    {edu.obtainedMarks && edu.totalMarks && (
+                      parseFloat(edu.obtainedMarks) > parseFloat(edu.totalMarks)
+                        ? <p className="text-xs text-red-600">❌ Obtained cannot exceed Total</p>
+                        : <p className="text-xs text-green-600">✓ {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%</p>
+                    )}
+                  </div>
+                </>
+              )}
+              {edu.gradeType === 'cgpa' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>CGPA Obtained</Label>
+                    <Input type="number" step="0.01" placeholder="8.5" value={edu.obtainedCGPA} onChange={(e) => updateEducation(index, 'obtainedCGPA', e.target.value)} min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max CGPA</Label>
+                    <Select value={edu.maxCGPA || '10'} onValueChange={(v) => updateEducation(index, 'maxCGPA', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="4">4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {edu.obtainedCGPA && edu.maxCGPA && (
+                      parseFloat(edu.obtainedCGPA) > parseFloat(edu.maxCGPA)
+                        ? <p className="text-xs text-red-600">❌ CGPA cannot exceed Max</p>
+                        : <p className="text-xs text-green-600">✓ {edu.obtainedCGPA} / {edu.maxCGPA}</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Experience Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Work Experience (Optional)</h3>
+          <Button variant="outline" size="sm" onClick={addExperience} type="button" className="gap-1">
+            <Plus className="w-4 h-4" /> Add Experience
+          </Button>
+        </div>
+        {formData.experience.map((exp: any, index: number) => (
+          <Card key={index} className="p-4">
+            <div className="flex justify-between items-start mb-3">
+              <span className="font-medium text-sm text-muted-foreground">Experience #{index + 1}</span>
+              <Button variant="ghost" size="sm" onClick={() => removeExperience(index)} className="text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Job Title *</Label>
+                <Input placeholder="Software Engineer" value={exp.jobTitle} onChange={(e) => updateExperience(index, 'jobTitle', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Company *</Label>
+                <Input placeholder="Company Name" value={exp.companyName} onChange={(e) => updateExperience(index, 'companyName', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Input placeholder="City, Country" value={exp.location} onChange={(e) => updateExperience(index, 'location', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Employment Type</Label>
+                <Select value={exp.employmentType} onValueChange={(v) => updateExperience(index, 'employmentType', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full-time">Full-time</SelectItem>
+                    <SelectItem value="part-time">Part-time</SelectItem>
+                    <SelectItem value="internship">Internship</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Input type="month" value={exp.startDate} onChange={(e) => updateExperience(index, 'startDate', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Input type="month" value={exp.endDate} onChange={(e) => updateExperience(index, 'endDate', e.target.value)} disabled={exp.isCurrent} />
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" checked={exp.isCurrent} onChange={(e) => updateExperience(index, 'isCurrent', e.target.checked)} />
+                  <span className="text-sm">Currently working here</span>
+                </div>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Description</Label>
+                <Textarea placeholder="Describe your responsibilities..." value={exp.description} onChange={(e) => updateExperience(index, 'description', e.target.value)} rows={2} />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Achievements Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Achievements (Optional)</h3>
+          <Button variant="outline" size="sm" onClick={addAchievement} type="button" className="gap-1">
+            <Plus className="w-4 h-4" /> Add Achievement
+          </Button>
+        </div>
+        {formData.achievements.map((ach: any, index: number) => (
+          <Card key={index} className="p-4">
+            <div className="flex justify-between items-start mb-3">
+              <span className="font-medium text-sm text-muted-foreground">Achievement #{index + 1}</span>
+              <Button variant="ghost" size="sm" onClick={() => removeAchievement(index)} className="text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Title *</Label>
+                <Input placeholder="Best Project Award" value={ach.title} onChange={(e) => updateAchievement(index, 'title', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Issuer</Label>
+                <Input placeholder="Organization/Event" value={ach.issuer} onChange={(e) => updateAchievement(index, 'issuer', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="month" value={ach.date} onChange={(e) => updateAchievement(index, 'date', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input placeholder="Brief description" value={ach.description} onChange={(e) => updateAchievement(index, 'description', e.target.value)} />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Certifications Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Certifications (Optional)</h3>
+          <Button variant="outline" size="sm" onClick={addCertification} type="button" className="gap-1">
+            <Plus className="w-4 h-4" /> Add Certification
+          </Button>
+        </div>
+        {formData.certifications.map((cert: any, index: number) => (
+          <Card key={index} className="p-4">
+            <div className="flex justify-between items-start mb-3">
+              <span className="font-medium text-sm text-muted-foreground">Certification #{index + 1}</span>
+              <Button variant="ghost" size="sm" onClick={() => removeCertification(index)} className="text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Certificate Name *</Label>
+                <Input placeholder="AWS Solutions Architect" value={cert.name} onChange={(e) => updateCertification(index, 'name', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Issuing Organization *</Label>
+                <Input placeholder="Amazon Web Services" value={cert.issuingOrganization} onChange={(e) => updateCertification(index, 'issuingOrganization', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Issue Date</Label>
+                <Input type="month" value={cert.issueDate} onChange={(e) => updateCertification(index, 'issueDate', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Expiry Date (if applicable)</Label>
+                <Input type="month" value={cert.expiryDate} onChange={(e) => updateCertification(index, 'expiryDate', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Credential ID</Label>
+                <Input placeholder="ABC123XYZ" value={cert.credentialId} onChange={(e) => updateCertification(index, 'credentialId', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Credential URL</Label>
+                <Input placeholder="https://verify.example.com/..." value={cert.credentialUrl} onChange={(e) => updateCertification(index, 'credentialUrl', e.target.value)} />
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );
