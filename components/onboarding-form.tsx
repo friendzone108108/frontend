@@ -290,6 +290,35 @@ export function OnboardingForm() {
       setValidationError('At least one skill is required');
       return false;
     }
+
+    // Validate education grades - obtained must be <= max
+    for (let i = 0; i < formData.education.length; i++) {
+      const edu = formData.education[i];
+      if (edu.gradeType === 'cgpa') {
+        const obtained = parseFloat(edu.obtainedCGPA || '0');
+        const max = parseFloat(edu.maxCGPA || '10');
+        if (obtained > max) {
+          setValidationError(`Education #${i + 1}: CGPA Obtained (${obtained}) cannot be greater than Maximum CGPA (${max})`);
+          return false;
+        }
+        if (obtained < 0) {
+          setValidationError(`Education #${i + 1}: CGPA cannot be negative`);
+          return false;
+        }
+      } else if (edu.gradeType === 'percentage') {
+        const obtained = parseFloat(edu.obtainedMarks || '0');
+        const total = parseFloat(edu.totalMarks || '100');
+        if (obtained > total) {
+          setValidationError(`Education #${i + 1}: Obtained Marks (${obtained}) cannot be greater than Total Marks (${total})`);
+          return false;
+        }
+        if (obtained < 0 || total < 0) {
+          setValidationError(`Education #${i + 1}: Marks cannot be negative`);
+          return false;
+        }
+      }
+    }
+
     return true;
   };
 
@@ -315,11 +344,14 @@ export function OnboardingForm() {
   };
 
   const validateStep3 = (): boolean => {
+    // GitHub connection is optional but recommended
+    // User can proceed even without connecting
+    // Just show a warning but don't block
     if (!githubConnected) {
-      setValidationError('Please connect your GitHub account to proceed');
-      return false;
+      // Show info message but allow proceed
+      console.log('GitHub not connected - proceeding without it');
     }
-    return true;
+    return true; // Always allow proceeding
   };
 
   const validateStep4 = (): boolean => {
@@ -854,9 +886,15 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
                           min="1"
                         />
                         {edu.obtainedMarks && edu.totalMarks && (
-                          <p className="text-xs text-green-600 font-medium">
-                            Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
-                          </p>
+                          parseFloat(edu.obtainedMarks) > parseFloat(edu.totalMarks) ? (
+                            <p className="text-xs text-red-600 font-medium">
+                              ❌ Error: Obtained ({edu.obtainedMarks}) cannot exceed Total ({edu.totalMarks})
+                            </p>
+                          ) : (
+                            <p className="text-xs text-green-600 font-medium">
+                              ✓ Percentage: {((parseFloat(edu.obtainedMarks) / parseFloat(edu.totalMarks)) * 100).toFixed(2)}%
+                            </p>
+                          )
                         )}
                       </div>
                     </>
@@ -893,9 +931,15 @@ function Step1({ formData, setFormData, handleFileChange }: any) {
                           </SelectContent>
                         </Select>
                         {edu.obtainedCGPA && edu.maxCGPA && (
-                          <p className="text-xs text-green-600 font-medium">
-                            CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
-                          </p>
+                          parseFloat(edu.obtainedCGPA) > parseFloat(edu.maxCGPA) ? (
+                            <p className="text-xs text-red-600 font-medium">
+                              ❌ Error: CGPA ({edu.obtainedCGPA}) cannot exceed Max ({edu.maxCGPA})
+                            </p>
+                          ) : (
+                            <p className="text-xs text-green-600 font-medium">
+                              ✓ CGPA: {edu.obtainedCGPA} / {edu.maxCGPA}
+                            </p>
+                          )
                         )}
                       </div>
                     </>
@@ -1101,35 +1145,64 @@ function Step3({ githubConnected, setGithubConnected, githubConnecting, setGithu
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Connect your accounts</h2>
-      <p className="text-muted-foreground">Connecting your accounts allows us to showcase your projects and professional experience on your profile, enhancing your visibility to potential employers.</p>
+      <p className="text-muted-foreground">
+        Connecting your GitHub account allows us to showcase your projects and professional experience on your profile.
+        <strong> This step is optional but highly recommended.</strong>
+      </p>
 
-      <Card className={githubConnected ? "border-green-500 bg-green-50" : ""}>
-        <CardContent className="pt-6 flex items-center justify-between">
+      {/* Info Box */}
+      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-semibold">Connect GitHub Account *</p>
-            <p className="text-sm text-muted-foreground">
-              {githubConnected
-                ? "✓ GitHub connected! Your repositories will be synced."
-                : "Showcase your projects and contributions."}
+            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">Why connect GitHub?</p>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+              Your GitHub repositories will be automatically synced to display on your profile.
+              AI will analyze your projects to generate professional descriptions for your resume.
+              You can also connect later from the Projects page.
             </p>
           </div>
-          {githubConnected ? (
-            <Button variant="outline" className="border-green-500 text-green-600" disabled>
-              ✓ Connected
-            </Button>
-          ) : (
-            <Button onClick={handleConnectGitHub} disabled={githubConnecting}>
-              {githubConnecting ? 'Connecting...' : 'Connect GitHub'}
-            </Button>
-          )}
+        </div>
+      </div>
+
+      <Card className={githubConnected ? "border-green-500 bg-green-50 dark:bg-green-950/30" : ""}>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">
+                Connect GitHub Account
+                <span className="text-xs text-muted-foreground ml-2">(Recommended)</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {githubConnected
+                  ? "✓ GitHub connected! Your repositories will be synced."
+                  : "Showcase your projects and contributions. Uses GitHub App (not OAuth)."}
+              </p>
+            </div>
+            {githubConnected ? (
+              <Button variant="outline" className="border-green-500 text-green-600" disabled>
+                ✓ Connected
+              </Button>
+            ) : (
+              <Button onClick={handleConnectGitHub} disabled={githubConnecting}>
+                {githubConnecting ? 'Connecting...' : 'Connect GitHub'}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {!githubConnected && (
+        <p className="text-sm text-muted-foreground text-center">
+          💡 <strong>Tip:</strong> You can skip this step and connect GitHub later from the Projects page.
+        </p>
+      )}
 
       <Card>
         <CardContent className="pt-6 flex items-center justify-between">
           <div>
             <p className="font-semibold">Connect a Job Platform Account</p>
-            <p className="text-sm text-muted-foreground">Connect LinkedIn, Naukri, or Indeed. (Optional, but one is required)</p>
+            <p className="text-sm text-muted-foreground">Connect LinkedIn, Naukri, or Indeed. (Coming Soon)</p>
           </div>
           <Button disabled>Connect (Coming Soon)</Button>
         </CardContent>
