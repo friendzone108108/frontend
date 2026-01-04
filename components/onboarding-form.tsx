@@ -1436,17 +1436,39 @@ function Step4GitHub({ githubConnected, setGithubConnected, githubConnecting, se
         return;
       }
 
-      // Redirect to GitHub Sync Service OAuth flow with user_id
-      window.location.href = `${GITHUB_SYNC_SERVICE_URL}/v1/github/authorize?user_id=${user.id}`;
+      // Redirect to GitHub Sync Service OAuth flow with user_id and redirect_to for onboarding
+      window.location.href = `${GITHUB_SYNC_SERVICE_URL}/v1/github/authorize?user_id=${user.id}&redirect_to=/onboarding`;
     } catch (error) {
       console.error('Error initiating GitHub connection:', error);
       setGithubConnecting(false);
     }
   };
 
-  // Check if already connected on mount
+  // Check if already connected on mount AND handle callback params
   const checkGitHubConnection = async () => {
     try {
+      // Check URL params for OAuth callback result
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const connected = params.get('github_connected');
+        const error = params.get('github_error');
+
+        if (connected === 'true') {
+          setGithubConnected(true);
+          setGithubConnecting(false);
+          // Clean up URL params
+          window.history.replaceState({}, '', '/onboarding');
+          return;
+        }
+
+        if (error) {
+          console.error('GitHub OAuth error:', error);
+          setGithubConnecting(false);
+          // Clean up URL params
+          window.history.replaceState({}, '', '/onboarding');
+        }
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
