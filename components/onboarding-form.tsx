@@ -303,7 +303,11 @@ export function OnboardingForm() {
       setValidationError('Phone Number is required');
       return false;
     }
-    if (formData.phoneNumber.length < 10) {
+    if (formData.countryCode === '+91' && formData.phoneNumber.length !== 10) {
+      setValidationError('Phone number must be exactly 10 digits for India (+91)');
+      return false;
+    }
+    if (formData.phoneNumber.length < 10) { // Minimum length for other countries
       setValidationError('Please enter a valid phone number (at least 10 digits)');
       return false;
     }
