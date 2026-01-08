@@ -1349,6 +1349,9 @@ function Step2Academics({ formData, setFormData }: any) {
 function Step3Career({ formData, setFormData }: any) {
   const roles = ["Software Engineer", "Data Scientist", "Product Manager", "UX/UI Designer", "DevOps Engineer", "Cybersecurity", "Machine Learning", "Blockchain Dev", "Others"];
 
+  // Local state for location input - allows typing commas and spaces freely
+  const [locationInput, setLocationInput] = useState(formData.preferredLocations.join(', '));
+
   const toggleRole = (role: string) => {
     setFormData({
       ...formData,
@@ -1376,8 +1379,9 @@ function Step3Career({ formData, setFormData }: any) {
     });
   };
 
-  const handleLocationChange = (value: string) => {
-    const locations = value.split(',').map(l => l.trim()).filter(l => l);
+  // Parse locations and save to formData when user leaves the field
+  const handleLocationBlur = () => {
+    const locations = locationInput.split(',').map((l: string) => l.trim()).filter((l: string) => l);
     setFormData({ ...formData, preferredLocations: locations });
   };
 
@@ -1421,8 +1425,9 @@ function Step3Career({ formData, setFormData }: any) {
           <Label htmlFor="locations">Preferred Job Locations (comma separated) *</Label>
           <Input
             id="locations"
-            value={formData.preferredLocations.join(', ')}
-            onChange={(e) => handleLocationChange(e.target.value)}
+            value={locationInput}
+            onChange={(e) => setLocationInput(e.target.value)}
+            onBlur={handleLocationBlur}
             placeholder="e.g., Bangalore, Hyderabad, Remote"
           />
         </div>
