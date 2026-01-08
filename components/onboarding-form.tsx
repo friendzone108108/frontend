@@ -471,11 +471,24 @@ export function OnboardingForm() {
       return null;
     }
 
-    const { data } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    // For private buckets (government-ids), use signed URL
+    // For public buckets (profile-photos), use public URL
+    if (bucket === 'government-ids') {
+      const { data, error: signedError } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(filePath, 3600); // 1 hour expiry
 
-    return data.publicUrl;
+      if (signedError || !data) {
+        console.error('Signed URL error:', signedError);
+        return null;
+      }
+      return data.signedUrl;
+    } else {
+      const { data } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+      return data.publicUrl;
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePhoto' | 'govtId') => {
