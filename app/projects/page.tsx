@@ -547,7 +547,7 @@ function ProjectsPageContent() {
                     content_type: 'video/webm',
                     status: 'uploaded',
                     playback_url: playbackUrl
-                }, { onConflict: 'user_id,repo_id' });
+                }, { onConflict: 'repo_id' });
 
             if (dbError) throw dbError;
 
