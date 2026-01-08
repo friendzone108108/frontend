@@ -514,14 +514,26 @@ function ProjectsPageContent() {
                 }
             }
 
-            // Generate unique filename
-            const fileName = `${session.user.id}/${selectedRepoForVideo.id}/${Date.now()}.webm`;
+            // Determine file extension based on content type
+            // For recorded videos (webm) or uploaded videos (mp4, webm, mov, avi)
+            const contentType = recordedBlob.type || 'video/webm';
+            const extensionMap: Record<string, string> = {
+                'video/webm': 'webm',
+                'video/mp4': 'mp4',
+                'video/quicktime': 'mov',
+                'video/x-msvideo': 'avi'
+            };
+            const fileExtension = extensionMap[contentType] || 'mp4';
+
+            // New storage format: {user_uuid}/{project_id}.{extension}
+            // This allows Resume Generator to auto-match videos to projects
+            const fileName = `${session.user.id}/${selectedRepoForVideo.id}.${fileExtension}`;
 
             // Upload to Supabase Storage
             const { data, error } = await supabase.storage
                 .from('project-videos')
                 .upload(fileName, recordedBlob, {
-                    contentType: 'video/webm',
+                    contentType: contentType,
                     upsert: true
                 });
 
@@ -542,9 +554,9 @@ function ProjectsPageContent() {
                     repo_id: selectedRepoForVideo.id,
                     storage_path: fileName,
                     storage_bucket: 'project-videos',
-                    file_name: `${selectedRepoForVideo.name}-intro.webm`,
+                    file_name: `${selectedRepoForVideo.name}-intro.${fileExtension}`,
                     file_size: recordedBlob.size,
-                    content_type: 'video/webm',
+                    content_type: contentType,
                     status: 'uploaded',
                     playback_url: playbackUrl
                 }, { onConflict: 'repo_id' });
