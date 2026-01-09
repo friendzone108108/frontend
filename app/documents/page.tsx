@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { supabase } from "@/lib/supabase";
-import { Edit, Download, Trash2, Upload, FileText, Sparkles, Loader2, Eye, CheckCircle2 } from "lucide-react";
+import { Edit, Download, Trash2, Upload, FileText, Sparkles, Loader2, Eye, CheckCircle2, X, ExternalLink } from "lucide-react";
 
 const RESUME_SERVICE_URL = process.env.NEXT_PUBLIC_RESUME_SERVICE_URL || '';
 
@@ -85,6 +85,10 @@ export default function DocumentsPage() {
     const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [generationSuccess, setGenerationSuccess] = useState<{ url: string; docId: string } | null>(null);
+
+    // PDF Viewer states
+    const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+    const [viewingResume, setViewingResume] = useState<ResumeDocument | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -518,7 +522,17 @@ export default function DocumentsPage() {
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => handleDownload(generationSuccess.url)}
+                                                        onClick={() => {
+                                                            // Find the newly generated resume and open viewer
+                                                            const newResume = documents.find(d => d.id === generationSuccess.docId);
+                                                            if (newResume) {
+                                                                setViewingResume(newResume);
+                                                                setPdfViewerOpen(true);
+                                                            } else {
+                                                                // Fallback: open in new tab
+                                                                window.open(generationSuccess.url, '_blank');
+                                                            }
+                                                        }}
                                                     >
                                                         <Eye className="w-4 h-4 mr-1" />
                                                         View PDF
@@ -588,7 +602,10 @@ export default function DocumentsPage() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => handleDownload(doc.file_url!)}
+                                                                onClick={() => {
+                                                                    setViewingResume(doc);
+                                                                    setPdfViewerOpen(true);
+                                                                }}
                                                             >
                                                                 <Eye className="w-4 h-4 mr-1" />
                                                                 View
@@ -757,6 +774,80 @@ export default function DocumentsPage() {
                         </Button>
                         <Button onClick={handleRename}>Rename</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* PDF Viewer Dialog */}
+            <Dialog open={pdfViewerOpen} onOpenChange={setPdfViewerOpen}>
+                <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+                    <div className="flex flex-col h-full">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-6 h-6 text-blue-600" />
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-900">
+                                        {viewingResume?.title || 'Resume Preview'}
+                                    </h2>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {viewingResume?.role && (
+                                            <Badge className="text-xs bg-blue-100 text-blue-700">
+                                                {viewingResume.role}
+                                            </Badge>
+                                        )}
+                                        {viewingResume?.template_id && (
+                                            <Badge variant="outline" className="text-xs">
+                                                {viewingResume.template_id === 'modern' ? 'Modern Minimal' : 'Classic Corporate'}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => viewingResume?.file_url && window.open(viewingResume.file_url, '_blank')}
+                                >
+                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                    Open in New Tab
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => viewingResume?.file_url && handleDownload(viewingResume.file_url)}
+                                >
+                                    <Download className="w-4 h-4 mr-1" />
+                                    Download PDF
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setPdfViewerOpen(false)}
+                                    className="ml-2"
+                                >
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* PDF Viewer */}
+                        <div className="flex-1 bg-gray-100">
+                            {viewingResume?.file_url ? (
+                                <iframe
+                                    src={`${viewingResume.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
+                                    className="w-full h-full border-0"
+                                    title="Resume PDF Preview"
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center">
+                                        <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                                        <p className="text-gray-500">No PDF available</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </DashboardLayout>
