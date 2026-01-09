@@ -179,8 +179,55 @@ function ProjectsPageContent() {
 
             if (error) throw error;
             setRepositories(data || []);
+
+            // Auto-detect genres for repos that don't have them (runs in background)
+            if (data && data.length > 0) {
+                autoDetectGenresForRepos(data);
+            }
         } catch (error) {
             console.error('Error fetching repositories:', error);
+        }
+    };
+
+    // Auto-detect genres for repositories without genres (background process)
+    const autoDetectGenresForRepos = async (repos: Repository[]) => {
+        const reposWithoutGenres = repos.filter(
+            repo => (!repo.genres || repo.genres.length === 0) && repo.readme_content
+        );
+
+        if (reposWithoutGenres.length === 0) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            // Process repos sequentially to avoid rate limiting
+            for (const repo of reposWithoutGenres) {
+                try {
+                    const response = await fetch(`${GITHUB_SYNC_SERVICE_URL}/v1/projects/${repo.id}/detect-genre`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${session.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Update the local state with detected genres
+                        setRepositories(prev => prev.map(r =>
+                            r.id === repo.id ? { ...r, genres: data.genres } : r
+                        ));
+                    }
+
+                    // Small delay between requests to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (err) {
+                    console.warn(`Failed to auto-detect genre for ${repo.name}:`, err);
+                }
+            }
+        } catch (error) {
+            console.error('Error in auto-detect genres:', error);
         }
     };
 
