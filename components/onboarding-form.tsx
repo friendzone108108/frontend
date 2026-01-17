@@ -214,23 +214,28 @@ const isValidEducationYear = (yearStr: string, dateOfBirth: string): { valid: bo
   const year = parseInt(yearStr);
   const currentYear = new Date().getFullYear();
 
-  // Year should not be more than 5 years in the future
-  if (year > currentYear + 5) {
-    return { valid: false, error: `Completion year cannot be more than 5 years in the future (max: ${currentYear + 5})` };
+  // Year should not be more than 10 years in the future (reasonable for ongoing education)
+  if (year > currentYear + 10) {
+    return { valid: false, error: `Completion year cannot be more than 10 years in the future (max: ${currentYear + 10})` };
   }
 
-  // Year should not be more than 60 years in the past
-  if (year < currentYear - 60) {
-    return { valid: false, error: `Completion year cannot be more than 60 years in the past (min: ${currentYear - 60})` };
-  }
-
-  // Year should be at least 10 years after date of birth
+  // Year should be at least 10 years after date of birth (minimum age to complete any education)
   if (dateOfBirth) {
     const birthYear = new Date(dateOfBirth).getFullYear();
-    const minGradYear = birthYear + 10; // Minimum 10 years old to complete any education
+    const minGradYear = birthYear + 10;
     if (year < minGradYear) {
       return { valid: false, error: `Completion year must be at least 10 years after birth year (min: ${minGradYear})` };
     }
+
+    // Year should not be before birth year
+    if (year <= birthYear) {
+      return { valid: false, error: `Completion year must be after your birth year (${birthYear})` };
+    }
+  }
+
+  // Basic sanity check - year should be reasonable (1950 onwards)
+  if (year < 1950) {
+    return { valid: false, error: 'Completion year must be 1950 or later' };
   }
 
   return { valid: true };
@@ -242,21 +247,14 @@ const isValidExperienceDate = (dateStr: string, dateOfBirth: string, isStart: bo
 
   const date = new Date(dateStr);
   const today = new Date();
-  const currentYear = new Date().getFullYear();
+  today.setHours(23, 59, 59, 999); // End of today
 
-  // Start date cannot be in the future
-  if (isStart && date > today) {
-    return { valid: false, error: 'Start date cannot be in the future' };
+  // Date cannot be in the future
+  if (date > today) {
+    return { valid: false, error: isStart ? 'Start date cannot be in the future' : 'End date cannot be in the future' };
   }
 
-  // Date should not be more than 50 years in the past
-  const minDate = new Date();
-  minDate.setFullYear(currentYear - 50);
-  if (date < minDate) {
-    return { valid: false, error: 'Date cannot be more than 50 years in the past' };
-  }
-
-  // Must be at least 16 years after DOB (minimum working age)
+  // Date must be after DOB + 16 years (minimum working age)
   if (dateOfBirth) {
     const birthDate = new Date(dateOfBirth);
     const minWorkDate = new Date(birthDate);
@@ -264,17 +262,28 @@ const isValidExperienceDate = (dateStr: string, dateOfBirth: string, isStart: bo
     if (date < minWorkDate) {
       return { valid: false, error: 'Work experience date must be at least 16 years after your date of birth' };
     }
+
+    // Date must be after DOB
+    if (date <= birthDate) {
+      return { valid: false, error: 'Work experience date must be after your date of birth' };
+    }
+  }
+
+  // Basic sanity check - not before 1950
+  if (date.getFullYear() < 1950) {
+    return { valid: false, error: 'Date must be 1950 or later' };
   }
 
   return { valid: true };
 };
 
 // Validate certification dates
-const isValidCertificationDate = (dateStr: string, isIssue: boolean, issueDate?: string): { valid: boolean; error?: string } => {
+const isValidCertificationDate = (dateStr: string, isIssue: boolean, dateOfBirth?: string, issueDate?: string): { valid: boolean; error?: string } => {
   if (!dateStr) return { valid: true }; // Optional
 
   const date = new Date(dateStr);
   const today = new Date();
+  today.setHours(23, 59, 59, 999);
   const currentYear = new Date().getFullYear();
 
   if (isIssue) {
@@ -282,11 +291,21 @@ const isValidCertificationDate = (dateStr: string, isIssue: boolean, issueDate?:
     if (date > today) {
       return { valid: false, error: 'Issue date cannot be in the future' };
     }
-    // Issue date should not be more than 30 years in the past
-    const minDate = new Date();
-    minDate.setFullYear(currentYear - 30);
-    if (date < minDate) {
-      return { valid: false, error: 'Issue date cannot be more than 30 years in the past' };
+
+    // Issue date must be after DOB (you can only get certifications after being born!)
+    if (dateOfBirth) {
+      const birthDate = new Date(dateOfBirth);
+      // Realistically, certifications are obtained after at least age 10
+      const minCertDate = new Date(birthDate);
+      minCertDate.setFullYear(minCertDate.getFullYear() + 10);
+      if (date < minCertDate) {
+        return { valid: false, error: 'Certification issue date must be at least 10 years after your date of birth' };
+      }
+    }
+
+    // Basic sanity check
+    if (date.getFullYear() < 1970) {
+      return { valid: false, error: 'Issue date must be 1970 or later' };
     }
   } else {
     // Expiry date should be after issue date
@@ -308,23 +327,29 @@ const isValidCertificationDate = (dateStr: string, isIssue: boolean, issueDate?:
 };
 
 // Validate achievement date
-const isValidAchievementDate = (dateStr: string): { valid: boolean; error?: string } => {
+const isValidAchievementDate = (dateStr: string, dateOfBirth?: string): { valid: boolean; error?: string } => {
   if (!dateStr) return { valid: true }; // Optional
 
   const date = new Date(dateStr);
   const today = new Date();
-  const currentYear = new Date().getFullYear();
+  today.setHours(23, 59, 59, 999);
 
-  // Cannot be in the future
+  // Achievements MUST be in the past - cannot be in the future
   if (date > today) {
-    return { valid: false, error: 'Achievement date cannot be in the future' };
+    return { valid: false, error: 'Achievement date cannot be in the future. Achievements are for past accomplishments.' };
   }
 
-  // Should not be more than 50 years in the past
-  const minDate = new Date();
-  minDate.setFullYear(currentYear - 50);
-  if (date < minDate) {
-    return { valid: false, error: 'Achievement date cannot be more than 50 years in the past' };
+  // Achievement date must be after DOB
+  if (dateOfBirth) {
+    const birthDate = new Date(dateOfBirth);
+    if (date <= birthDate) {
+      return { valid: false, error: 'Achievement date must be after your date of birth' };
+    }
+  }
+
+  // Basic sanity check - achievements after 1950
+  if (date.getFullYear() < 1950) {
+    return { valid: false, error: 'Achievement date must be 1950 or later' };
   }
 
   return { valid: true };
@@ -611,7 +636,7 @@ export function OnboardingForm() {
 
       // Validate issue date
       if (cert.issueDate) {
-        const issueValidation = isValidCertificationDate(cert.issueDate, true);
+        const issueValidation = isValidCertificationDate(cert.issueDate, true, formData.dateOfBirth);
         if (!issueValidation.valid) {
           setValidationError(`Certification #${i + 1}: ${issueValidation.error}`);
           return false;
@@ -620,7 +645,7 @@ export function OnboardingForm() {
 
       // Validate expiry date
       if (cert.expiryDate) {
-        const expiryValidation = isValidCertificationDate(cert.expiryDate, false, cert.issueDate);
+        const expiryValidation = isValidCertificationDate(cert.expiryDate, false, formData.dateOfBirth, cert.issueDate);
         if (!expiryValidation.valid) {
           setValidationError(`Certification #${i + 1}: ${expiryValidation.error}`);
           return false;
@@ -633,7 +658,7 @@ export function OnboardingForm() {
       const achievement = formData.achievements[i];
 
       if (achievement.date) {
-        const dateValidation = isValidAchievementDate(achievement.date);
+        const dateValidation = isValidAchievementDate(achievement.date, formData.dateOfBirth);
         if (!dateValidation.valid) {
           setValidationError(`Achievement #${i + 1}: ${dateValidation.error}`);
           return false;

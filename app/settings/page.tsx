@@ -275,14 +275,9 @@ export default function SettingsPage() {
         const year = parseInt(yearStr);
         const currentYear = new Date().getFullYear();
 
-        // Year should not be more than 5 years in the future
-        if (year > currentYear + 5) {
-            return `Completion year cannot be more than 5 years in the future (max: ${currentYear + 5})`;
-        }
-
-        // Year should not be more than 60 years in the past
-        if (year < currentYear - 60) {
-            return `Completion year cannot be more than 60 years in the past (min: ${currentYear - 60})`;
+        // Year should not be more than 10 years in the future (reasonable for ongoing education)
+        if (year > currentYear + 10) {
+            return `Completion year cannot be more than 10 years in the future (max: ${currentYear + 10})`;
         }
 
         // Year should be at least 10 years after date of birth
@@ -292,6 +287,16 @@ export default function SettingsPage() {
             if (year < minGradYear) {
                 return `Completion year must be at least 10 years after birth year (min: ${minGradYear})`;
             }
+
+            // Year should not be before birth year
+            if (year <= birthYear) {
+                return `Completion year must be after your birth year (${birthYear})`;
+            }
+        }
+
+        // Basic sanity check - year should be reasonable (1950 onwards)
+        if (year < 1950) {
+            return 'Completion year must be 1950 or later';
         }
 
         return null;
