@@ -80,15 +80,25 @@ function DashboardContent() {
                 setProfile(navProfile);
 
                 // User is onboarded, fetch dashboard stats
-                const { data: jobStatus } = await supabase.from('job_search_status').select('resume_versions').single();
-                const { count: projectCount } = await supabase.from('projects').select('*', { count: 'exact', head: true });
-                const { count: certCount } = await supabase.from('certificates').select('*', { count: 'exact', head: true });
+                const { data: { user } } = await supabase.auth.getUser();
+
+                // Fetch project count
+                const { count: projectCount } = await supabase
+                    .from('projects')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user?.id);
+
+                // Fetch resume count from documents table
+                const { count: resumeCount } = await supabase
+                    .from('documents')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', user?.id)
+                    .eq('document_type', 'resume');
 
                 setStats(prev => ({
                     ...prev,
                     projects: projectCount || 0,
-                    certificates: certCount || 0,
-                    resumeVersions: jobStatus?.resume_versions || 0
+                    resumeVersions: resumeCount || 0
                 }));
 
             } catch (err) {
