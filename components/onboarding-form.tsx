@@ -207,6 +207,129 @@ const getMinDateForDOB = (): string => {
   return today.toISOString().split('T')[0];
 };
 
+// Validate education completion year
+const isValidEducationYear = (yearStr: string, dateOfBirth: string): { valid: boolean; error?: string } => {
+  if (!yearStr) return { valid: true }; // Optional field
+
+  const year = parseInt(yearStr);
+  const currentYear = new Date().getFullYear();
+
+  // Year should not be more than 5 years in the future
+  if (year > currentYear + 5) {
+    return { valid: false, error: `Completion year cannot be more than 5 years in the future (max: ${currentYear + 5})` };
+  }
+
+  // Year should not be more than 60 years in the past
+  if (year < currentYear - 60) {
+    return { valid: false, error: `Completion year cannot be more than 60 years in the past (min: ${currentYear - 60})` };
+  }
+
+  // Year should be at least 10 years after date of birth
+  if (dateOfBirth) {
+    const birthYear = new Date(dateOfBirth).getFullYear();
+    const minGradYear = birthYear + 10; // Minimum 10 years old to complete any education
+    if (year < minGradYear) {
+      return { valid: false, error: `Completion year must be at least 10 years after birth year (min: ${minGradYear})` };
+    }
+  }
+
+  return { valid: true };
+};
+
+// Validate experience dates
+const isValidExperienceDate = (dateStr: string, dateOfBirth: string, isStart: boolean): { valid: boolean; error?: string } => {
+  if (!dateStr) return { valid: true }; // Optional
+
+  const date = new Date(dateStr);
+  const today = new Date();
+  const currentYear = new Date().getFullYear();
+
+  // Start date cannot be in the future
+  if (isStart && date > today) {
+    return { valid: false, error: 'Start date cannot be in the future' };
+  }
+
+  // Date should not be more than 50 years in the past
+  const minDate = new Date();
+  minDate.setFullYear(currentYear - 50);
+  if (date < minDate) {
+    return { valid: false, error: 'Date cannot be more than 50 years in the past' };
+  }
+
+  // Must be at least 16 years after DOB (minimum working age)
+  if (dateOfBirth) {
+    const birthDate = new Date(dateOfBirth);
+    const minWorkDate = new Date(birthDate);
+    minWorkDate.setFullYear(minWorkDate.getFullYear() + 16);
+    if (date < minWorkDate) {
+      return { valid: false, error: 'Work experience date must be at least 16 years after your date of birth' };
+    }
+  }
+
+  return { valid: true };
+};
+
+// Validate certification dates
+const isValidCertificationDate = (dateStr: string, isIssue: boolean, issueDate?: string): { valid: boolean; error?: string } => {
+  if (!dateStr) return { valid: true }; // Optional
+
+  const date = new Date(dateStr);
+  const today = new Date();
+  const currentYear = new Date().getFullYear();
+
+  if (isIssue) {
+    // Issue date cannot be in the future
+    if (date > today) {
+      return { valid: false, error: 'Issue date cannot be in the future' };
+    }
+    // Issue date should not be more than 30 years in the past
+    const minDate = new Date();
+    minDate.setFullYear(currentYear - 30);
+    if (date < minDate) {
+      return { valid: false, error: 'Issue date cannot be more than 30 years in the past' };
+    }
+  } else {
+    // Expiry date should be after issue date
+    if (issueDate) {
+      const issue = new Date(issueDate);
+      if (date <= issue) {
+        return { valid: false, error: 'Expiry date must be after issue date' };
+      }
+    }
+    // Expiry date should not be more than 10 years in the future
+    const maxDate = new Date();
+    maxDate.setFullYear(currentYear + 10);
+    if (date > maxDate) {
+      return { valid: false, error: 'Expiry date cannot be more than 10 years in the future' };
+    }
+  }
+
+  return { valid: true };
+};
+
+// Validate achievement date
+const isValidAchievementDate = (dateStr: string): { valid: boolean; error?: string } => {
+  if (!dateStr) return { valid: true }; // Optional
+
+  const date = new Date(dateStr);
+  const today = new Date();
+  const currentYear = new Date().getFullYear();
+
+  // Cannot be in the future
+  if (date > today) {
+    return { valid: false, error: 'Achievement date cannot be in the future' };
+  }
+
+  // Should not be more than 50 years in the past
+  const minDate = new Date();
+  minDate.setFullYear(currentYear - 50);
+  if (date < minDate) {
+    return { valid: false, error: 'Achievement date cannot be more than 50 years in the past' };
+  }
+
+  return { valid: true };
+};
+
 export function OnboardingForm() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -406,9 +529,20 @@ export function OnboardingForm() {
       return false;
     }
 
-    // Validate education grades - obtained must be <= max
+    // Validate education entries
     for (let i = 0; i < formData.education.length; i++) {
       const edu = formData.education[i];
+
+      // Validate completion year
+      if (edu.yearOfCompletion) {
+        const yearValidation = isValidEducationYear(edu.yearOfCompletion, formData.dateOfBirth);
+        if (!yearValidation.valid) {
+          setValidationError(`Education #${i + 1}: ${yearValidation.error}`);
+          return false;
+        }
+      }
+
+      // Validate grades - obtained must be <= max
       if (edu.gradeType === 'cgpa') {
         const obtained = parseFloat(edu.obtainedCGPA || '0');
         const max = parseFloat(edu.maxCGPA || '10');
@@ -420,6 +554,10 @@ export function OnboardingForm() {
           setValidationError(`Education #${i + 1}: CGPA cannot be negative`);
           return false;
         }
+        if (max <= 0 || max > 10) {
+          setValidationError(`Education #${i + 1}: Maximum CGPA must be between 1 and 10`);
+          return false;
+        }
       } else if (edu.gradeType === 'percentage') {
         const obtained = parseFloat(edu.obtainedMarks || '0');
         const total = parseFloat(edu.totalMarks || '100');
@@ -429,6 +567,75 @@ export function OnboardingForm() {
         }
         if (obtained < 0 || total < 0) {
           setValidationError(`Education #${i + 1}: Marks cannot be negative`);
+          return false;
+        }
+        if (total > 1000) {
+          setValidationError(`Education #${i + 1}: Total marks cannot exceed 1000`);
+          return false;
+        }
+      }
+    }
+
+    // Validate experience entries
+    for (let i = 0; i < formData.experience.length; i++) {
+      const exp = formData.experience[i];
+
+      // Validate start date
+      if (exp.startDate) {
+        const startValidation = isValidExperienceDate(exp.startDate, formData.dateOfBirth, true);
+        if (!startValidation.valid) {
+          setValidationError(`Experience #${i + 1}: ${startValidation.error}`);
+          return false;
+        }
+      }
+
+      // Validate end date
+      if (exp.endDate && !exp.isCurrent) {
+        const endValidation = isValidExperienceDate(exp.endDate, formData.dateOfBirth, false);
+        if (!endValidation.valid) {
+          setValidationError(`Experience #${i + 1}: ${endValidation.error}`);
+          return false;
+        }
+
+        // End date must be after start date
+        if (exp.startDate && new Date(exp.endDate) <= new Date(exp.startDate)) {
+          setValidationError(`Experience #${i + 1}: End date must be after start date`);
+          return false;
+        }
+      }
+    }
+
+    // Validate certification entries
+    for (let i = 0; i < formData.certifications.length; i++) {
+      const cert = formData.certifications[i];
+
+      // Validate issue date
+      if (cert.issueDate) {
+        const issueValidation = isValidCertificationDate(cert.issueDate, true);
+        if (!issueValidation.valid) {
+          setValidationError(`Certification #${i + 1}: ${issueValidation.error}`);
+          return false;
+        }
+      }
+
+      // Validate expiry date
+      if (cert.expiryDate) {
+        const expiryValidation = isValidCertificationDate(cert.expiryDate, false, cert.issueDate);
+        if (!expiryValidation.valid) {
+          setValidationError(`Certification #${i + 1}: ${expiryValidation.error}`);
+          return false;
+        }
+      }
+    }
+
+    // Validate achievement entries
+    for (let i = 0; i < formData.achievements.length; i++) {
+      const achievement = formData.achievements[i];
+
+      if (achievement.date) {
+        const dateValidation = isValidAchievementDate(achievement.date);
+        if (!dateValidation.valid) {
+          setValidationError(`Achievement #${i + 1}: ${dateValidation.error}`);
           return false;
         }
       }

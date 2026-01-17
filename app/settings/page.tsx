@@ -268,6 +268,65 @@ export default function SettingsPage() {
         return true;
     };
 
+    // Validate education completion year
+    const isValidEducationYear = (yearStr: string): string | null => {
+        if (!yearStr) return null; // Optional
+
+        const year = parseInt(yearStr);
+        const currentYear = new Date().getFullYear();
+
+        // Year should not be more than 5 years in the future
+        if (year > currentYear + 5) {
+            return `Completion year cannot be more than 5 years in the future (max: ${currentYear + 5})`;
+        }
+
+        // Year should not be more than 60 years in the past
+        if (year < currentYear - 60) {
+            return `Completion year cannot be more than 60 years in the past (min: ${currentYear - 60})`;
+        }
+
+        // Year should be at least 10 years after date of birth
+        if (profile.date_of_birth) {
+            const birthYear = new Date(profile.date_of_birth).getFullYear();
+            const minGradYear = birthYear + 10;
+            if (year < minGradYear) {
+                return `Completion year must be at least 10 years after birth year (min: ${minGradYear})`;
+            }
+        }
+
+        return null;
+    };
+
+    // Validate education grades
+    const validateEducationGrades = (edu: Education, index: number): string | null => {
+        if (edu.grade_type === 'cgpa') {
+            const obtained = parseFloat(edu.obtained_cgpa || '0');
+            const max = parseFloat(edu.max_cgpa || '10');
+            if (obtained > max) {
+                return `Education #${index + 1}: CGPA Obtained (${obtained}) cannot be greater than Maximum CGPA (${max})`;
+            }
+            if (obtained < 0) {
+                return `Education #${index + 1}: CGPA cannot be negative`;
+            }
+            if (max <= 0 || max > 10) {
+                return `Education #${index + 1}: Maximum CGPA must be between 1 and 10`;
+            }
+        } else if (edu.grade_type === 'percentage') {
+            const obtained = parseFloat(edu.obtained_marks || edu.percentage || '0');
+            const total = parseFloat(edu.total_marks || '100');
+            if (obtained > total) {
+                return `Education #${index + 1}: Obtained Marks cannot be greater than Total Marks`;
+            }
+            if (obtained < 0 || total < 0) {
+                return `Education #${index + 1}: Marks cannot be negative`;
+            }
+            if (total > 1000) {
+                return `Education #${index + 1}: Total marks cannot exceed 1000`;
+            }
+        }
+        return null;
+    };
+
     // Validate section before saving
     const validateSection = (section: string): string | null => {
         switch (section) {
@@ -285,6 +344,29 @@ export default function SettingsPage() {
             case 'skills':
                 if (!profile.skills || profile.skills.length === 0) {
                     return 'At least one skill is required';
+                }
+                break;
+            case 'academic':
+                // Validate education entries if they exist
+                if (profile.education && profile.education.length > 0) {
+                    for (let i = 0; i < profile.education.length; i++) {
+                        const edu = profile.education[i];
+
+                        // Validate year of completion
+                        const yearToValidate = edu.year_of_completion || edu.graduation_year;
+                        if (yearToValidate) {
+                            const yearError = isValidEducationYear(yearToValidate);
+                            if (yearError) {
+                                return `Education #${i + 1}: ${yearError}`;
+                            }
+                        }
+
+                        // Validate grades
+                        const gradeError = validateEducationGrades(edu, i);
+                        if (gradeError) {
+                            return gradeError;
+                        }
+                    }
                 }
                 break;
             case 'career':
