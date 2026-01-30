@@ -22,10 +22,13 @@ interface ResumeDocument {
     id: string;
     title: string;
     role: string | null;
-    template_id: string | null;
     file_url: string | null;
     updated_at: string;
     created_at: string;
+    meta_data?: {
+        template_id?: string;
+        generated_via?: string;
+    };
 }
 
 interface CertificateDocument {
@@ -169,7 +172,7 @@ export default function DocumentsPage() {
                 .from('documents')
                 .select('*')
                 .eq('user_id', user.id)
-                .eq('document_type', 'resume')
+                .eq('document_type', 'Resume')
                 .order('updated_at', { ascending: false });
 
             if (error) throw error;
@@ -352,7 +355,23 @@ export default function DocumentsPage() {
         }
     };
 
-    const handleDownload = (url: string) => {
+    // Get the public URL for a file stored in Supabase storage
+    const getStorageUrl = (filePath: string): string => {
+        // If it's already a full URL, return as-is
+        if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+            return filePath;
+        }
+
+        // Get public URL from Supabase storage
+        const { data } = supabase.storage
+            .from('certificates-documents')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
+    };
+
+    const handleDownload = async (filePath: string) => {
+        const url = getStorageUrl(filePath);
         window.open(url, '_blank');
     };
 
@@ -589,7 +608,7 @@ export default function DocumentsPage() {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         {getRoleBadge(doc.role)}
-                                                        {getTemplateBadge(doc.template_id)}
+                                                        {getTemplateBadge(doc.meta_data?.template_id || null)}
                                                     </div>
                                                     <h3 className="font-semibold text-lg text-slate-900">{doc.title}</h3>
                                                     <p className="text-sm text-muted-foreground">
@@ -795,9 +814,9 @@ export default function DocumentsPage() {
                                                 {viewingResume.role}
                                             </Badge>
                                         )}
-                                        {viewingResume?.template_id && (
+                                        {viewingResume?.meta_data?.template_id && (
                                             <Badge variant="outline" className="text-xs">
-                                                {viewingResume.template_id === 'modern' ? 'Modern Minimal' : 'Classic Corporate'}
+                                                {viewingResume.meta_data.template_id === 'modern' ? 'Modern Minimal' : 'Classic Corporate'}
                                             </Badge>
                                         )}
                                     </div>
@@ -807,7 +826,7 @@ export default function DocumentsPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => viewingResume?.file_url && window.open(viewingResume.file_url, '_blank')}
+                                    onClick={() => viewingResume?.file_url && window.open(getStorageUrl(viewingResume.file_url), '_blank')}
                                 >
                                     <ExternalLink className="w-4 h-4 mr-1" />
                                     Open in New Tab
@@ -834,7 +853,7 @@ export default function DocumentsPage() {
                         <div className="flex-1 bg-gray-100">
                             {viewingResume?.file_url ? (
                                 <iframe
-                                    src={`${viewingResume.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
+                                    src={`${getStorageUrl(viewingResume.file_url)}#toolbar=0&navpanes=0&scrollbar=1`}
                                     className="w-full h-full border-0"
                                     title="Resume PDF Preview"
                                 />
