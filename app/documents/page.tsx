@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { supabase } from "@/lib/supabase";
-import { Edit, Download, Trash2, Upload, FileText, Sparkles, Loader2, Eye, CheckCircle2, X, ExternalLink } from "lucide-react";
+import { Edit, Download, Trash2, Upload, FileText, Sparkles, Loader2, Eye, CheckCircle2, X, ExternalLink, AlertTriangle } from "lucide-react";
+import { useSystemControlsContext } from "@/components/SystemControlsProvider";
 
 const RESUME_SERVICE_URL = process.env.NEXT_PUBLIC_RESUME_SERVICE_URL || '';
 
@@ -96,6 +97,9 @@ export default function DocumentsPage() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Get system controls for automation status
+    const { automationsStopped } = useSystemControlsContext();
 
     const fetchData = async () => {
         setLoading(true);
@@ -507,13 +511,19 @@ export default function DocumentsPage() {
                                             <div className="flex items-end">
                                                 <Button
                                                     onClick={handleGenerateResume}
-                                                    disabled={generating || !selectedRole || !RESUME_SERVICE_URL}
-                                                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                                                    disabled={generating || !selectedRole || !RESUME_SERVICE_URL || automationsStopped}
+                                                    className={`w-full ${automationsStopped ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'}`}
+                                                    title={automationsStopped ? 'Service temporarily unavailable - under maintenance' : ''}
                                                 >
                                                     {generating ? (
                                                         <>
                                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                                             Generating...
+                                                        </>
+                                                    ) : automationsStopped ? (
+                                                        <>
+                                                            <AlertTriangle className="w-4 h-4 mr-2" />
+                                                            Under Maintenance
                                                         </>
                                                     ) : (
                                                         <>
@@ -525,12 +535,18 @@ export default function DocumentsPage() {
                                             </div>
                                         </div>
 
+                                        {automationsStopped && (
+                                            <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded flex items-center gap-2">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                Resume generation is temporarily unavailable. Please try again later.
+                                            </p>
+                                        )}
+
                                         {!RESUME_SERVICE_URL && (
                                             <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded">
                                                 Resume service not configured. Please set NEXT_PUBLIC_RESUME_SERVICE_URL.
                                             </p>
                                         )}
-
                                         {generationSuccess && (
                                             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
                                                 <div className="flex items-center gap-2">

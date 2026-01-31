@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { supabase } from "@/lib/supabase";
-import { Edit2, Save, X, Plus, Trash2, Github, Linkedin, Mail, MapPin, Calendar, GraduationCap, Briefcase, Key, User, Bell } from "lucide-react";
+import { Edit2, Save, X, Plus, Trash2, Github, Linkedin, Mail, MapPin, Calendar, GraduationCap, Briefcase, Key, User, Bell, AlertTriangle } from "lucide-react";
+import { useSystemControlsContext } from "@/components/SystemControlsProvider";
 
 // Degree type options (same as onboarding form)
 const DEGREE_TYPES = [
@@ -90,7 +91,7 @@ const NOTIFICATION_FREQUENCIES = [
 ];
 
 // Component to check actual GitHub OAuth connection status
-function GitHubConnectionStatus({ profile }: { profile: UserProfile }) {
+function GitHubConnectionStatus({ profile, automationsStopped }: { profile: UserProfile; automationsStopped: boolean }) {
     const [isConnected, setIsConnected] = useState(false);
     const [githubUsername, setGithubUsername] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -162,7 +163,10 @@ function GitHubConnectionStatus({ profile }: { profile: UserProfile }) {
                 <Button
                     variant="outline"
                     size="sm"
+                    disabled={automationsStopped}
+                    title={automationsStopped ? 'Service temporarily unavailable - under maintenance' : ''}
                     onClick={() => {
+                        if (automationsStopped) return;
                         // Redirect to GitHub OAuth
                         const GITHUB_SYNC_URL = process.env.NEXT_PUBLIC_GITHUB_SYNC_SERVICE_URL;
                         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -172,7 +176,14 @@ function GitHubConnectionStatus({ profile }: { profile: UserProfile }) {
                         });
                     }}
                 >
-                    Connect
+                    {automationsStopped ? (
+                        <>
+                            <AlertTriangle className="w-4 h-4 mr-1" />
+                            Unavailable
+                        </>
+                    ) : (
+                        'Connect'
+                    )}
                 </Button>
             )}
         </div>
@@ -181,6 +192,7 @@ function GitHubConnectionStatus({ profile }: { profile: UserProfile }) {
 
 export default function SettingsPage() {
     const router = useRouter();
+    const { automationsStopped } = useSystemControlsContext();
     const [profile, setProfile] = useState<UserProfile>({});
     const [originalProfile, setOriginalProfile] = useState<UserProfile>({});
     const [loading, setLoading] = useState(true);
@@ -1069,7 +1081,7 @@ export default function SettingsPage() {
                             <CardDescription>Manage your connected accounts for project sync</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <GitHubConnectionStatus profile={profile} />
+                            <GitHubConnectionStatus profile={profile} automationsStopped={automationsStopped} />
                         </CardContent>
                     </Card>
                 </div>
