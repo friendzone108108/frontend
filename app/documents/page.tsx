@@ -816,7 +816,7 @@ export default function DocumentsPage() {
 
             {/* PDF Viewer Dialog */}
             <Dialog open={pdfViewerOpen} onOpenChange={setPdfViewerOpen}>
-                <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+                <DialogContent className="max-w-[95vw] w-full h-[90vh] p-0 overflow-hidden">
                     <div className="flex flex-col h-full">
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-white">
@@ -871,7 +871,7 @@ export default function DocumentsPage() {
                         <div className="flex-1 bg-gray-100">
                             {viewingResume?.file_url ? (
                                 <iframe
-                                    src={`${getStorageUrl(viewingResume.file_url)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                                    src={`${getStorageUrl(viewingResume.file_url)}#toolbar=0&navpanes=0&scrollbar=1&zoom=100`}
                                     className="w-full h-full border-0"
                                     title="Resume PDF Preview"
                                 />
