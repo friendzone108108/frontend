@@ -871,7 +871,7 @@ export default function DocumentsPage() {
                         <div className="flex-1 bg-gray-100">
                             {viewingResume?.file_url ? (
                                 <iframe
-                                    src={`${getStorageUrl(viewingResume.file_url)}#toolbar=0&navpanes=0&scrollbar=1`}
+                                    src={`${getStorageUrl(viewingResume.file_url)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
                                     className="w-full h-full border-0"
                                     title="Resume PDF Preview"
                                 />

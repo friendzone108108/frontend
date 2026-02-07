@@ -97,11 +97,11 @@ export default function BlockedPage() {
                                 If you believe this is an error or would like to appeal, please contact our support team:
                             </p>
                             <a
-                                href="mailto:support@careerautomate.in"
+                                href="mailto:info.careerautomate@gmail.com"
                                 className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                             >
                                 <Mail className="w-4 h-4" />
-                                support@careerautomate.in
+                                info.careerautomate@gmail.com
                             </a>
                             <p className="text-xs text-slate-500 mt-3">
                                 Please include your registered email ({userEmail}) in your message.
